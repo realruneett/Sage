@@ -2,21 +2,41 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.venv/
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Venv
 venv/
-.env
+.venv/
+ENV/
+
+# Caches
 .mypy_cache/
-.pytest_cache/
 .ruff_cache/
-htmlcov/
+.pytest_cache/
 .coverage
+htmlcov/
 
-# Models
+# SAGE-CODE Specific
 models/
-*.safetensors
-*.bin
-*.awq
-
-# OS
-.DS_Store
-Thumbs.db
+*.gguf
+.env
+*.log
+outputs/
+benchmarks/results/

@@ -8,10 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-05-07
 
 ### Added
-- Initial release of SAGE-CODE Pro Coding Engine.
-- 4-Agent co-resident architecture for AMD MI300X.
-- AODE operators: Code-Topology Routing, Torsion Warp, Lie Bracket Synthesis, Nash Crucible.
-- Mechanical oracle grounding with ruff, mypy, bandit, and pytest.
-- Firejail-sandboxed execution environment.
-- Gradio-based reasoning trace dashboard.
-- Benchmarking harness for HumanEval+ and SWE-Bench-Lite.
+- Initial release of SAGE-PRO engine core.
+- 4-Agent co-residency reasoning graph (LangGraph).
+- AODE reasoning operators (Topological, Torsion, Lie Bracket, Nash).
+- Mechanical tool oracle integration (Ruff, Mypy, Bandit, Semgrep).
+- MI300X memory-locking and VRAM optimization logic.
+- HumanEval+ and SWE-Bench-Lite benchmarking harness.
+- Premium Gradio Dashboard with reasoning flow visualization.
+- MIT License and initial project infrastructure.
