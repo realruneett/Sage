@@ -1,28 +1,46 @@
-import subprocess
+import asyncio
 import json
+import structlog
 from typing import List, Dict, Any
 
-def run_ruff(code: str) -> List[Dict[str, Any]]:
-    """Runs ruff on the provided code and returns a list of violations.
+logger = structlog.get_logger(__name__)
+
+async def run_ruff(path: str) -> List[Dict[str, Any]]:
+    \"\"\"Invokes Ruff linter on the specified path and returns findings.
 
     Args:
-        code: The Python source code to lint.
+        path: The filesystem path (file or directory) to lint.
 
     Returns:
-        A list of dictionaries representing ruff violations, or an empty list.
-    """
+        A list of dictionaries containing ruff violations.
+        Each finding includes: rule, severity, line, and message.
+    \"\"\"
+    cmd = ["ruff", "check", "--output-format=json", path]
+    
     try:
-        # Use stdin to avoid temporary files
-        result = subprocess.run(
-            ["ruff", "check", "-", "--format", "json"],
-            input=code,
-            capture_output=True,
-            text=True,
-            check=False
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
         )
-        if result.stdout:
-            data = json.loads(result.stdout)
-            return data if isinstance(data, list) else []
-        return []
-    except Exception:
+        stdout, stderr = await process.communicate()
+
+        if not stdout:
+            return []
+
+        findings = json.loads(stdout)
+        formatted_findings = []
+        
+        for f in findings:
+            formatted_findings.append({
+                "rule": f.get("code"),
+                "severity": "error" if f.get("fix") is None else "warning",
+                "line": f.get("location", {}).get("row"),
+                "message": f.get("message")
+            })
+            
+        return formatted_findings
+
+    except Exception as e:
+        logger.error("ruff_lint_failed", error=str(e))
         return []

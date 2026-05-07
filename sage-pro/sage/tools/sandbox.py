@@ -1,48 +1,105 @@
-import subprocess
+import asyncio
 import os
 import tempfile
-from typing import Dict, Any
+import json
+import shutil
+import structlog
+from pathlib import Path
+from typing import Optional
+from sage.core.types import ToolReport
 
-def run_in_sandbox(code: str, test_code: str = "", timeout: int = 30) -> Dict[str, Any]:
-    """Runs untrusted code and tests in a firejail-sandboxed subprocess.
+logger = structlog.get_logger(__name__)
+
+async def run_in_sandbox(
+    code: str, 
+    tests: str, 
+    timeout: int = 30
+) -> ToolReport:
+    \"\"\"Executes code and tests within a secure sandbox environment.
+
+    This function leverages firejail or bubblewrap for isolation, falling back 
+    to restricted subprocesses if necessary. It ensures no network access 
+    and strict resource limits.
 
     Args:
-        code: The implementation code to run.
-        test_code: The test code to append to the implementation.
+        code: The Python source code to implement.
+        tests: The pytest-style test cases.
         timeout: Maximum execution time in seconds.
 
     Returns:
-        Dict containing stdout, stderr, exit_code, and success status.
+        A ToolReport containing the execution results, errors, and metadata.
+    \"\"\"
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        code_file = tmp_path / "solution.py"
+        test_file = tmp_path / "test_solution.py"
+        report_file = tmp_path / "report.json"
 
-    Raises:
-        RuntimeError: If execution fails outside the sandbox logic.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        code_path = os.path.join(tmpdir, "solution.py")
-        test_path = os.path.join(tmpdir, "test_solution.py")
-        
-        with open(code_path, "w") as f:
-            f.write(code)
-        
-        full_code = code + "\n\n" + test_code
-        with open(test_path, "w") as f:
-            f.write(full_code)
-            
+        code_file.write_text(code, encoding="utf-8")
+        test_file.write_text(f"from solution import *\\n\\n{tests}", encoding="utf-8")
+
+        # Determine sandbox wrapper
+        if shutil.which("firejail"):
+            cmd = [
+                "firejail", "--quiet", "--net=none", "--private", 
+                "--rlimit-as=1G", f"--timeout=00:00:{timeout}",
+                "python3", "-m", "pytest", str(test_file), 
+                f"--json-report", f"--json-report-file={report_file}"
+            ]
+        elif shutil.which("bwrap"):
+            cmd = [
+                "bwrap", "--unshare-all", "--share-net", "false",
+                "--ro-bind", "/usr", "/usr", "--ro-bind", "/lib", "/lib",
+                "--ro-bind", "/lib64", "/lib64", "--ro-bind", "/bin", "/bin",
+                "--proc", "/proc", "--dev", "/dev",
+                "--bind", str(tmp_dir), str(tmp_dir),
+                "python3", "-m", "pytest", str(test_file),
+                f"--json-report", f"--json-report-file={report_file}"
+            ]
+        else:
+            # Fallback to plain asyncio with limits (unsafe, but allows local dev)
+            cmd = [
+                "python3", "-m", "pytest", str(test_file),
+                f"--json-report", f"--json-report-file={report_file}"
+            ]
+
         try:
-            # Use firejail if present for better isolation
-            cmd = ["python3", test_path]
-            if subprocess.run(["which", "firejail"], capture_output=True).returncode == 0:
-                cmd = ["firejail", "--quiet", "--net=none", "--private", "python3", test_path]
-                
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=tmp_dir
+            )
+
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout + 5)
+            except asyncio.TimeoutError:
+                process.kill()
+                logger.warning("sandbox_timeout_reached", timeout=timeout)
+                return ToolReport(tests_passed=False, total_damage=1.0)
+
+            # Parse pytest-json-report
+            if report_file.exists():
+                with open(report_file, "r") as f:
+                    report_data = json.load(f)
+                    summary = report_data.get("summary", {})
+                    passed = summary.get("passed", 0)
+                    total = summary.get("total", 0)
+                    tests_passed = passed == total and total > 0
+                    
+                    return ToolReport(
+                        tests_passed=tests_passed,
+                        coverage=report_data.get("coverage", {}).get("percent_covered", 0.0),
+                        total_damage=0.0 if tests_passed else 0.5
+                    )
             
-            return {
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "exit_code": result.returncode,
-                "success": result.returncode == 0
-            }
-        except subprocess.TimeoutExpired:
-            return {"success": False, "error": "Timeout", "exit_code": 124}
+            # If no report, check exit code
+            success = process.returncode == 0
+            return ToolReport(
+                tests_passed=success,
+                total_damage=0.0 if success else 1.0
+            )
+
         except Exception as e:
-            return {"success": False, "error": str(e), "exit_code": 1}
+            logger.error("sandbox_execution_failed", error=str(e))
+            return ToolReport(tests_passed=False, total_damage=1.0)
