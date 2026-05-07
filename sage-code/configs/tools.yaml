@@ -1,0 +1,10 @@
+ruff:
+  line_length: 100
+  select: ["ALL"]
+  ignore: ["D203", "D213", "COM812"]
+mypy:
+  strict: true
+bandit:
+  severity: "high"
+semgrep:
+  config: "auto"

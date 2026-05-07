@@ -1,0 +1,5 @@
+model: "Qwen/Qwen2.5-Coder-72B-Instruct"
+quantization: "awq"
+gpu_memory_utilization: 0.24
+enforce_eager: true
+max_model_len: 4096

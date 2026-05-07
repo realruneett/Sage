@@ -1,0 +1,40 @@
+# Core ML
+vllm==0.6.0
+torch==2.4.0
+transformers==4.44.0
+accelerate==0.33.0
+sentence-transformers==3.0.1
+faiss-cpu==1.8.0
+gudhi==3.10.1
+
+# Orchestration
+langgraph==0.2.14
+langchain==0.2.14
+pydantic==2.8.2
+numpy==1.26.4
+scipy==1.13.1
+
+# API & UI
+fastapi==0.112.0
+uvicorn==0.30.6
+gradio==4.40.0
+python-multipart==0.0.9
+
+# Tools & Grounding
+ruff==0.6.1
+mypy==1.11.1
+bandit==1.7.9
+semgrep==1.84.0
+pytest==8.3.2
+pytest-asyncio==0.23.8
+pytest-cov==5.0.0
+radon==6.0.1
+hypothesis==6.111.0
+
+# Utilities
+python-dotenv==1.0.1
+httpx==0.27.0
+pyyaml==6.0.1
+structlog==24.4.0
+loguru==0.7.2
+hyperfine==1.18.0

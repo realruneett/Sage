@@ -1,0 +1,10 @@
+epsilon: 0.05
+delta: 0.02
+max_cycles: 4
+alpha: 0.7
+damage_weights:
+  test_failure: 1.00
+  type_error: 0.40
+  security_finding: 0.80
+  lint_error: 0.10
+  complexity_excess: 0.20

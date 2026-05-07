@@ -1,0 +1,15 @@
+name: Nightly Benchmarks
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Nightly at midnight
+
+jobs:
+  benchmark:
+    runs-on: [self-hosted, mi300x]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Run HumanEval+
+      run: python3 -m sage.benchmarks.humaneval_plus
+    - name: Run SWE-Bench-Lite
+      run: python3 -m sage.benchmarks.swe_bench_lite

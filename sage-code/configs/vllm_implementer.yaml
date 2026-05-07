@@ -1,0 +1,5 @@
+model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+quantization: "awq"
+gpu_memory_utilization: 0.07
+enforce_eager: true
+max_model_len: 4096

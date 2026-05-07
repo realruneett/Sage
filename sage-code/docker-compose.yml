@@ -1,0 +1,27 @@
+services:
+  sage-code:
+    build:
+      context: .
+      dockerfile: Dockerfile.rocm
+    container_name: sage-code
+    volumes:
+      - .:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    ipc: host
+    shm_size: 32gb
+    privileged: true # Required for firejail sandbox inside docker
+    ports:
+      - "8000:8000"
+      - "7860:7860"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: amd
+              count: all

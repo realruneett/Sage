@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Models
+models/
+*.safetensors
+*.bin
+*.awq
+
+# OS
+.DS_Store
+Thumbs.db
