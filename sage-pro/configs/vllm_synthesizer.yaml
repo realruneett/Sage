@@ -1,6 +1,6 @@
-model: "Qwen/Qwen2.5-Coder-72B-Instruct-AWQ"
+model: "MaziyarPanahi/Mistral-Large-Instruct-2407-AWQ"
 quantization: "awq_marlin"
-gpu_memory_utilization: 0.24
+gpu_memory_utilization: 0.38
 max_model_len: 32768
 enforce_eager: true
 port: 8003

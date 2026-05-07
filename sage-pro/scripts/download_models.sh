@@ -6,9 +6,9 @@ set -e
 
 MODELS=(
     "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
+    "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4"
+    "MaziyarPanahi/Mistral-Large-Instruct-2407-AWQ"
     "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
-    "Qwen/Qwen2.5-Coder-72B-Instruct-AWQ"
-    "bigcode/starcoder2-15b"
 )
 
 mkdir -p ./models
