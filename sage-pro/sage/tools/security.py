@@ -1,44 +1,69 @@
-import subprocess
-import tempfile
-import os
-from typing import Dict, List, Any
+import json
+import structlog
+from typing import List, Dict, Any
+from sage.tools.sandbox import run_command_in_sandbox
 
-def run_security_scan(code: str) -> Dict[str, Any]:
-    """Runs security scanners (Bandit) on the provided code to detect vulnerabilities.
+logger = structlog.get_logger(__name__)
+
+async def run_bandit(path: str) -> List[Dict[str, Any]]:
+    \"\"\"Invokes Bandit security scanner and returns findings.
 
     Args:
-        code: The Python source code to scan.
+        path: The filesystem path to scan.
 
     Returns:
-        Dict containing lists of findings for 'bandit' and 'semgrep'.
-    """
-    findings: Dict[str, List[Any]] = {"bandit": [], "semgrep": []}
+        A list of dictionaries containing Bandit findings (HIGH/MEDIUM severity).
+    \"\"\"
+    cmd = ["bandit", "-f", "json", "-r", path]
     
-    with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as tmp:
-        tmp.write(code)
-        tmp_path = tmp.name
-        
+    ret_code, stdout, stderr = await run_command_in_sandbox(cmd)
+    
+    if not stdout:
+        return []
+
     try:
-        # Bandit Scan
-        bandit_res = subprocess.run(
-            ["bandit", "-f", "json", tmp_path],
-            capture_output=True,
-            text=True,
-            check=False
-        )
-        if bandit_res.stdout:
-            import json
-            bandit_data = json.loads(bandit_res.stdout)
-            findings["bandit"] = bandit_data.get("results", [])
-            
-        # Semgrep placeholder (integrated via configs/tools.yaml in production)
-        # findings["semgrep"] = run_semgrep(tmp_path)
-        
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
-            
+        data = json.loads(stdout)
+        findings = []
+        for result in data.get("results", []):
+            if result.get("issue_severity") in ["HIGH", "MEDIUM"]:
+                findings.append({
+                    "rule": result.get("test_id"),
+                    "severity": result.get("issue_severity"),
+                    "line": result.get("line_number"),
+                    "message": result.get("issue_text")
+                })
         return findings
-    except Exception:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    except Exception as e:
+        logger.error("bandit_failed", error=str(e))
+        return []
+
+async def run_semgrep(path: str) -> List[Dict[str, Any]]:
+    \"\"\"Invokes Semgrep static analysis and returns findings.
+
+    Args:
+        path: The filesystem path to analyze.
+
+    Returns:
+        A list of dictionaries containing Semgrep findings.
+    \"\"\"
+    cmd = ["semgrep", "--config=auto", "--json", path]
+    
+    ret_code, stdout, stderr = await run_command_in_sandbox(cmd)
+    
+    if not stdout:
+        return []
+
+    try:
+        data = json.loads(stdout)
+        findings = []
+        for result in data.get("results", []):
+            findings.append({
+                "rule": result.get("check_id"),
+                "severity": result.get("extra", {}).get("severity"),
+                "line": result.get("start", {}).get("line"),
+                "message": result.get("extra", {}).get("message")
+            })
         return findings
+    except Exception as e:
+        logger.error("semgrep_failed", error=str(e))
+        return []

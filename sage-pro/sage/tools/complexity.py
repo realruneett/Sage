@@ -1,26 +1,50 @@
-import radon.complexity as cc
+import structlog
+from typing import Dict, Any, List
+from radon.complexity import cc_visit
 from radon.metrics import mi_visit
-from typing import Dict, Any
 
-def analyze_complexity(code: str) -> Dict[str, Any]:
-    """Analyzes the cyclomatic complexity and maintainability index of source code.
+logger = structlog.get_logger(__name__)
+
+def cyclomatic_complexity(code: str) -> Dict[str, Any]:
+    \"\"\"Calculates Cyclomatic Complexity using Radon.
 
     Args:
         code: The Python source code to analyze.
 
     Returns:
-        Dict containing average cyclomatic complexity, maintainability index, 
-        and high-complexity findings.
-    """
+        A dictionary containing complexity metrics per block.
+    \"\"\"
     try:
-        results = cc.cc_visit(code)
-        complexity = sum(r.complexity for r in results) / (len(results) or 1)
-        maintainability = float(mi_visit(code, multi=False))
-        
+        results = cc_visit(code)
+        blocks = []
+        total_cc = 0
+        for block in results:
+            blocks.append({
+                "name": block.name,
+                "complexity": block.complexity,
+                "rank": block.rank
+            })
+            total_cc += block.complexity
+            
         return {
-            "avg_cyclomatic_complexity": complexity,
-            "maintainability_index": maintainability,
-            "findings": [f"{r.name}: {r.complexity}" for r in results if r.complexity > 10]
+            "blocks": blocks,
+            "average_complexity": total_cc / len(blocks) if blocks else 0
         }
-    except Exception:
-        return {"avg_cyclomatic_complexity": 0.0, "maintainability_index": 100.0, "findings": []}
+    except Exception as e:
+        logger.error("complexity_calc_failed", error=str(e))
+        return {"blocks": [], "average_complexity": 0}
+
+def maintainability_index(code: str) -> float:
+    \"\"\"Calculates the Maintainability Index using Radon.
+
+    Args:
+        code: The Python source code to analyze.
+
+    Returns:
+        The maintainability index score (0-100).
+    \"\"\"
+    try:
+        return float(mi_visit(code, multi=False))
+    except Exception as e:
+        logger.error("mi_calc_failed", error=str(e))
+        return 0.0
