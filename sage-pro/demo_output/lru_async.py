@@ -1,77 +1,66 @@
-"""Thread-safe LRU Cache with TTL and async eviction — hardened by SAGE-PRO."""
-import asyncio
+```python
 import threading
-import time
-from collections import OrderedDict
-from typing import Any, Optional
+from collections import deque, defaultdict
 
+class LRUCache:
+    def __init__(self, max_size):
+        self.max_size = max_size
+        self.cache_store = {}
+        self.lru_queue = deque()
+        self.ttl_dict = defaultdict(int)
+        self.lock = threading.Lock()
 
-class AsyncTTLCache:
-    """A thread-safe LRU cache with per-key TTL and background async eviction.
+    def set(self, key, value, ttl):
+        with self.lock:
+            if key in self.cache_store:
+                # Update the access time and TTL
+                self.lru_queue.remove(key)
+                self.lru_queue.append(key)
+                self.ttl_dict[key] = ttl + self.get_current_time()
+            else:
+                # Add a new item to the cache store, LRU queue, and TTL dictionary
+                if len(self.cache_store) >= self.max_size:
+                    self.delete_lru_item()
+                self.cache_store[key] = value
+                self.lru_queue.append(key)
+                self.ttl_dict[key] = ttl + self.get_current_time()
 
-    Design rationale (SAGE-PRO Architect):
-        - OrderedDict gives O(1) move-to-end for LRU ordering.
-        - A dedicated asyncio task performs periodic sweeps instead of
-          checking expiry on every read (amortised cost).
-        - threading.Lock protects the dict so sync callers are safe too.
-    """
-
-    def __init__(self, maxsize: int = 128, default_ttl: float = 60.0,
-                 eviction_interval: float = 5.0) -> None:
-        self._maxsize = maxsize
-        self._default_ttl = default_ttl
-        self._eviction_interval = eviction_interval
-        self._store: OrderedDict[str, tuple[Any, float]] = OrderedDict()
-        self._lock = threading.Lock()
-        self._eviction_task: Optional[asyncio.Task[None]] = None
-
-    # ── public API ───────────────────────────────────────────────────
-
-    def get(self, key: str) -> Optional[Any]:
-        """Return value for *key* or None if missing / expired."""
-        with self._lock:
-            if key not in self._store:
+    def get(self, key):
+        with self.lock:
+            if key in self.cache_store and self.is_within_ttl(key):
+                # Update the access time
+                self.lru_queue.remove(key)
+                self.lru_queue.append(key)
+                return self.cache_store[key]
+            else:
                 return None
-            value, expires = self._store[key]
-            if time.monotonic() > expires:
-                del self._store[key]
-                return None
-            self._store.move_to_end(key)
-            return value
 
-    def put(self, key: str, value: Any, ttl: Optional[float] = None) -> None:
-        """Insert or update *key*.  Evicts LRU entry when full."""
-        ttl = ttl if ttl is not None else self._default_ttl
-        with self._lock:
-            if key in self._store:
-                self._store.move_to_end(key)
-            self._store[key] = (value, time.monotonic() + ttl)
-            if len(self._store) > self._maxsize:
-                self._store.popitem(last=False)
+    def delete(self, key):
+        with self.lock:
+            if key in self.cache_store:
+                del self.cache_store[key]
+                self.lru_queue.remove(key)
+                del self.ttl_dict[key]
 
-    @property
-    def size(self) -> int:
-        return len(self._store)
+    def clear(self):
+        with self.lock:
+            self.cache_store.clear()
+            self.lru_queue.clear()
+            self.ttl_dict.clear()
 
-    # ── async eviction ───────────────────────────────────────────────
+    def delete_lru_item(self):
+        if not self.lru_queue:
+            return
+        key = self.lru_queue.popleft()
+        del self.cache_store[key]
+        del self.ttl_dict[key]
 
-    async def start_eviction(self) -> None:
-        """Launch the background eviction loop."""
-        self._eviction_task = asyncio.create_task(self._evict_loop())
+    def is_within_ttl(self, key):
+        current_time = self.get_current_time()
+        return current_time < self.ttl_dict[key]
 
-    async def stop_eviction(self) -> None:
-        if self._eviction_task:
-            self._eviction_task.cancel()
-            try:
-                await self._eviction_task
-            except asyncio.CancelledError:
-                pass
-
-    async def _evict_loop(self) -> None:
-        while True:
-            await asyncio.sleep(self._eviction_interval)
-            now = time.monotonic()
-            with self._lock:
-                expired = [k for k, (_, exp) in self._store.items() if now > exp]
-                for k in expired:
-                    del self._store[k]
+    def get_current_time(self):
+        # Return the current time in seconds since epoch
+        import time
+        return int(time.time())
+```
