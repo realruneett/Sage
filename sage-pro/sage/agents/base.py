@@ -1,57 +1,154 @@
-import numpy as np
-from vllm import LLM, SamplingParams
-from sage.core.aode import CodeProposal
-from loguru import logger
-from typing import Optional
+import asyncio
+import httpx
+import structlog
+import time
+import hashlib
+from typing import AsyncGenerator, Optional, List
+from pathlib import Path
+from sage.core.types import AgentResponse, XAITrace
+
+logger = structlog.get_logger(__name__)
 
 class VLLMAgent:
-    """
-    Base vLLM Agent for SAGE-CODE, optimized for AMD Instinct MI300X.
-    """
-    def __init__(
-        self, 
-        name: str, 
-        model_path: str, 
-        quantization: Optional[str] = "awq", 
-        gpu_memory_utilization: float = 0.2, 
-        vram_gb: float = 0.0,
-        max_model_len: int = 4096
-    ):
-        self.name = name
-        self.vram_gb = vram_gb
-        logger.info(f"Initializing {name} agent on MI300X (VRAM: {vram_gb} GB, Frac: {gpu_memory_utilization})")
-        
-        # enforce_eager=True is critical for ROCm to avoid VRAM spikes
-        self.llm = LLM(
-            model=model_path,
-            quantization=quantization,
-            gpu_memory_utilization=gpu_memory_utilization,
-            max_model_len=max_model_len,
-            enforce_eager=True,
-            trust_remote_code=True
-        )
-        self.sampling_params = SamplingParams(temperature=0.7, max_tokens=2048)
+    \"\"\"Base class for SAGE agents interacting with vLLM endpoints via OpenAI-compatible HTTP.
 
-    async def generate(self, prompt: str, **kwargs: Any) -> CodeProposal:
-        """Generates code or design output from the specialist model.
+    This class handles prompt loading, request retries with exponential backoff, 
+    and XAI trace logging.
+    \"\"\"
+
+    def __init__(
+        self,
+        name: str,
+        base_url: str,
+        model_name: str,
+        max_tokens: int = 4096,
+        temperature: float = 0.2,
+        system_prompt_path: Optional[str] = None
+    ) -> None:
+        \"\"\"Initializes the VLLMAgent.
 
         Args:
-            prompt: The input prompt for the agent.
-            **kwargs: Additional generation parameters.
+            name: Human-readable name of the agent.
+            base_url: The vLLM server URL (e.g. http://localhost:8000/v1).
+            model_name: The identifier of the model to use.
+            max_tokens: Maximum tokens to generate.
+            temperature: Sampling temperature.
+            system_prompt_path: Path to the markdown file containing the system prompt.
+        \"\"\"
+        self.name = name
+        self.base_url = base_url.rstrip("/")
+        self.model_name = model_name
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.system_prompt = ""
+        
+        if system_prompt_path:
+            path = Path(system_prompt_path)
+            if path.exists():
+                self.system_prompt = path.read_text(encoding="utf-8")
+                logger.info("agent_prompt_loaded", agent=name, path=system_prompt_path)
+            else:
+                logger.warning("agent_prompt_not_found", agent=name, path=system_prompt_path)
+
+    async def complete(self, user_msg: str, extra_system: str = "") -> AgentResponse:
+        \"\"\"Performs a non-streaming chat completion.
+
+        Args:
+            user_msg: The user's input message.
+            extra_system: Optional additional system instructions.
 
         Returns:
-            A CodeProposal containing the generated text and a representation vector.
-        """
-        logger.info(f"[{self.name.upper()}] Generating...")
+            An AgentResponse containing the generated content and metadata.
+        \"\"\"
+        full_system = f"{self.system_prompt}\\n\\n{extra_system}".strip()
+        messages = [
+            {"role": "system", "content": full_system},
+            {"role": "user", "content": user_msg}
+        ]
         
-        # In a production MI300X environment, this would use vLLM's AsyncLLMEngine.
-        # We use the standard generate call for the engine logic demonstration.
-        outputs = self.llm.generate([prompt], self.sampling_params)
-        text = str(outputs[0].outputs[0].text)
-        
-        return CodeProposal(
-            code=text,
-            tests="",
-            vector=np.random.randn(1024),
-            cycle=0
-        )
+        payload = {
+            "model": self.model_name,
+            "messages": messages,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "stream": False
+        }
+
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            retries = 0
+            max_retries = 3
+            while retries <= max_retries:
+                try:
+                    start_time = time.time()
+                    response = await client.post(f"{self.base_url}/chat/completions", json=payload)
+                    
+                    if response.status_code >= 500 and retries < max_retries:
+                        retries += 1
+                        wait_time = 2 ** retries
+                        logger.warning("vllm_retry", agent=self.name, status=response.status_code, wait=wait_time)
+                        await asyncio.sleep(wait_time)
+                        continue
+                        
+                    response.raise_for_status()
+                    data = response.json()
+                    content = data["choices"][0]["message"]["content"]
+                    latency_ms = (time.time() - start_time) * 1000
+                    
+                    # Record XAI Trace
+                    prompt_hash = hashlib.md5(user_msg.encode()).hexdigest()[:8]
+                    trace = XAITrace(
+                        step_name=f"{self.name}_completion",
+                        operator="inference",
+                        divergence_signal=0.0,
+                        action_taken=f"Generated {len(content)} chars (Prompt hash: {prompt_hash})"
+                    )
+                    
+                    return AgentResponse(
+                        agent_name=self.name,
+                        content=content,
+                        latency_ms=latency_ms,
+                        thought_trace=[f"Prompt hash: {prompt_hash}"]
+                    )
+
+                except Exception as e:
+                    if retries >= max_retries:
+                        logger.error("vllm_completion_failed", agent=self.name, error=str(e))
+                        raise
+                    retries += 1
+                    await asyncio.sleep(2 ** retries)
+
+    async def stream(self, user_msg: str) -> AsyncGenerator[str, None]:
+        \"\"\"Yields tokens via Server-Sent Events (SSE) for real-time UI updates.
+
+        Args:
+            user_msg: The user's input message.
+
+        Yields:
+            The incremental tokens as strings.
+        \"\"\"
+        payload = {
+            "model": self.model_name,
+            "messages": [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_msg}
+            ],
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "stream": True
+        }
+
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream("POST", f"{self.base_url}/chat/completions", json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            break
+                        try:
+                            data = json.loads(data_str)
+                            token = data["choices"][0]["delta"].get("content", "")
+                            if token:
+                                yield token
+                        except:
+                            continue

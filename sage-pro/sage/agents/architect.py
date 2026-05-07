@@ -1,17 +1,47 @@
+import structlog
+from typing import List, Optional
 from sage.agents.base import VLLMAgent
 
-class ArchitectAgent(VLLMAgent):
-    """Architect specialist utilizing Qwen2.5-Coder-32B.
+logger = structlog.get_logger(__name__)
 
-    Responsible for high-level design, file layout, and API contracts.
-    Approximate VRAM usage: 20 GB (AWQ-4bit).
-    """
-    def __init__(self) -> None:
-        """Initializes the Architect agent with specified MI300X VRAM allocation."""
+class Architect(VLLMAgent):
+    \"\"\"The Architect specialist agent.
+
+    Responsible for high-level design, structure, and identifying novel 
+    topological voids in the codebase. Uses Qwen2.5-Coder-32B.
+    \"\"\"
+
+    def __init__(
+        self, 
+        base_url: str, 
+        model_name: str = "Qwen2.5-Coder-32B-Instruct-AWQ",
+        prompt_path: str = "sage/prompts/architect.md"
+    ) -> None:
+        \"\"\"Initializes the Architect with specialized parameters for MI300X.\"\"\"
         super().__init__(
-            name="architect",
-            model_path="Qwen/Qwen2.5-Coder-32B-Instruct",
-            quantization="awq",
-            gpu_memory_utilization=0.11,
-            vram_gb=20.0
+            name="Architect",
+            base_url=base_url,
+            model_name=model_name,
+            temperature=0.3,
+            system_prompt_path=prompt_path
         )
+
+    async def design(self, task: str, context_files: List[str]) -> str:
+        \"\"\"Generates a high-level architectural design for a task.
+
+        Args:
+            task: The natural language coding task.
+            context_files: List of paths or contents of relevant files.
+
+        Returns:
+            The design specification string.
+        \"\"\"
+        context_str = "\\n".join(context_files)
+        user_msg = (
+            f"Task: {task}\\n\\n"
+            f"Current Context:\\n{context_str}\\n\\n"
+            f"Produce a detailed design specification. Focus on topological robustness."
+        )
+        
+        response = await self.complete(user_msg)
+        return response.content

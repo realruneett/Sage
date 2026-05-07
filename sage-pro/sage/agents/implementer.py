@@ -1,17 +1,45 @@
+import structlog
 from sage.agents.base import VLLMAgent
 
-class ImplementerAgent(VLLMAgent):
-    """Implementer specialist utilizing DeepSeek-Coder-V2-Lite.
+logger = structlog.get_logger(__name__)
 
-    Responsible for writing dense, idiomatic code bodies based on Architect specs.
-    Approximate VRAM usage: 12 GB (AWQ-4bit).
-    """
-    def __init__(self) -> None:
-        """Initializes the Implementer agent with specified MI300X VRAM allocation."""
+class Implementer(VLLMAgent):
+    \"\"\"The Implementer specialist agent.
+
+    Responsible for turning design specifications into working code. 
+    Optimized for code generation using DeepSeek-Coder-V2.
+    \"\"\"
+
+    def __init__(
+        self, 
+        base_url: str, 
+        model_name: str = "DeepSeek-Coder-V2-Lite-Instruct",
+        prompt_path: str = "sage/prompts/implementer.md"
+    ) -> None:
+        \"\"\"Initializes the Implementer with specialized parameters for MI300X.\"\"\"
         super().__init__(
-            name="implementer",
-            model_path="deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct",
-            quantization="awq",
-            gpu_memory_utilization=0.07,
-            vram_gb=12.0
+            name="Implementer",
+            base_url=base_url,
+            model_name=model_name,
+            temperature=0.1,
+            system_prompt_path=prompt_path
         )
+
+    async def implement(self, spec: str, torsion_suffix: str) -> str:
+        \"\"\"Generates Python code based on an architectural specification.
+
+        Args:
+            spec: The design specification from the Architect.
+            torsion_suffix: An architectural nudge (torsion) to explore alternative manifolds.
+
+        Returns:
+            The generated Python source code.
+        \"\"\"
+        user_msg = (
+            f"Design Spec:\\n{spec}\\n\\n"
+            f"Constraints/Nudges:\\n{torsion_suffix}\\n\\n"
+            f"Implement the solution in Python. Ensure full type hints and docstrings."
+        )
+        
+        response = await self.complete(user_msg)
+        return response.content
