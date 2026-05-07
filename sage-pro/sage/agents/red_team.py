@@ -1,18 +1,96 @@
+import asyncio
+import structlog
+import ast
+import hashlib
+from typing import Dict, List, Any
 from sage.agents.base import VLLMAgent
 
-class RedTeamAgent(VLLMAgent):
-    """Red-Team adversary ensemble.
+logger = structlog.get_logger(__name__)
 
-    Responsible for attacking code to find bugs, security flaws, and edge cases.
-    Approximate VRAM usage: 32 GB (FP16 ensemble).
-    """
-    def __init__(self) -> None:
-        """Initializes the Red-Team agent with specified MI300X VRAM allocation."""
-        # Using primary adversary model for the demo
-        super().__init__(
-            name="red_team",
-            model_path="deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct",
-            quantization=None, # FP16 for adversarial precision
-            gpu_memory_utilization=0.17,
-            vram_gb=32.0
+class RedTeam:
+    \"\"\"The Red-Team specialist ensemble.
+
+    Uses a dual-model ensemble (DeepSeek-Coder + StarCoder2) to find vulnerabilities, 
+    generate adversarial tests, and perform asymptotic analysis.
+    \"\"\"
+
+    def __init__(
+        self, 
+        base_url: str,
+        prompt_path: str = "sage/prompts/red_team.md"
+    ) -> None:
+        \"\"\"Initializes the Red-Team ensemble.\"\"\"
+        self.primary = VLLMAgent(
+            name="RedTeam-Primary",
+            base_url=base_url,
+            model_name="DeepSeek-Coder-V2-Lite-Instruct",
+            temperature=0.7, # High entropy for creative attacks
+            system_prompt_path=prompt_path
         )
+        self.secondary = VLLMAgent(
+            name="RedTeam-Secondary",
+            base_url=base_url,
+            model_name="StarCoder2-15B",
+            temperature=0.5,
+            system_prompt_path=prompt_path
+        )
+
+    async def attack(self, code: str, spec: str) -> Dict[str, Any]:
+        \"\"\"Performs an adversarial attack on a code proposal.
+
+        Args:
+            code: The Python code to attack.
+            spec: The original architectural specification.
+
+        Returns:
+            A dictionary containing tests, strategies, findings, and analysis.
+        \"\"\"
+        user_msg = (
+            f"Code Proposal:\\n{code}\\n\\n"
+            f"Spec:\\n{spec}\\n\\n"
+            f"Find flaws, generate adversarial pytest cases, and provide Big-O analysis."
+        )
+
+        # Fan-out to both models
+        responses = await asyncio.gather(
+            self.primary.complete(user_msg),
+            self.secondary.complete(user_msg),
+            return_exceptions=True
+        )
+
+        findings: List[str] = []
+        tests: List[str] = []
+        
+        for resp in responses:
+            if isinstance(resp, Exception):
+                logger.error("red_team_sub_agent_failed", error=str(resp))
+                continue
+            
+            # Basic parsing of the raw response (assuming Markdown blocks)
+            # In a real system, we'd use a more robust parser or JSON mode.
+            findings.append(resp.content)
+            
+            # Extract code blocks as tests
+            # Simplified: assuming the LLM puts tests in ```python blocks
+            if resp.code:
+                tests.append(resp.code)
+
+        # Deduplicate tests by AST hash
+        unique_tests = []
+        seen_hashes = set()
+        for t in tests:
+            try:
+                tree = ast.parse(t)
+                t_hash = hashlib.md5(ast.dump(tree).encode()).hexdigest()
+                if t_hash not in seen_hashes:
+                    unique_tests.append(t)
+                    seen_hashes.add(t_hash)
+            except:
+                continue
+
+        return {
+            "tests": "\\n\\n".join(unique_tests),
+            "hypothesis_strategy": "st.text()", # Placeholder for strategy extraction
+            "security_findings": findings,
+            "big_o_analysis": "O(N log N)" # Placeholder for extraction
+        }

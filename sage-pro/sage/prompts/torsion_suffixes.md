@@ -1,11 +1,36 @@
-# TORSION SUFFIXES LIBRARY
+---
+axes:
+  - id: 1
+    label: oop_vs_functional
+    description: Bias towards Class-based encapsulation vs Pure-function composition.
+  - id: 2
+    label: iteration_vs_recursion
+    description: Bias towards imperative loops vs recursive divide-and-conquer.
+  - id: 3
+    label: async_vs_sync
+    description: Force non-blocking concurrency vs strict sequential execution.
+  - id: 4
+    label: generic_vs_specialized
+    description: Use abstract generics vs concrete, highly optimized types.
+  - id: 5
+    label: performance_vs_readability
+    description: Sacrifice developer experience for raw cycle efficiency.
+  - id: 6
+    label: memory_vs_cpu
+    description: Bias towards caching/lookup-tables vs on-the-fly recomputation.
+  - id: 7
+    label: defensive_vs_optimistic
+    description: Extensive validation vs assuming clean inputs.
+---
 
-Select one suffix based on the perpendicular axis projection of the design vector:
+# TORSION SUFFIXES
 
-1.  **Functional/Immutable**: "Constraint: Implement the solution using immutable data structures and pure functions. Avoid all class-level state and side effects. Prefer `namedtuple` or `dataclass(frozen=True)`."
-2.  **Iterative/DP**: "Constraint: Avoid recursion. Implement the solution using iterative dynamic programming with explicit state management and manual memory optimization."
-3.  **Data-Oriented**: "Constraint: Organize data into flat arrays/vectors. Minimize pointer chasing and deep object hierarchies to optimize for CPU cache locality and potential GPU offloading."
-4.  **Async/Non-Blocking**: "Constraint: Every I/O operation must be non-blocking. Use `async`/`await` throughout. Implement explicit backpressure and timeout mechanisms."
-5.  **Defensive/Hardened**: "Constraint: Implement aggressive input validation ('Parse, don't validate'). Every function must assume all inputs are malicious and handle malformed data without crashing."
-6.  **Streaming/Lazy**: "Constraint: Optimize for memory by using generators and streaming. Do not materialize large collections in memory. Process data in chunks < 4KB."
-7.  **Narrow Typing**: "Constraint: Use the narrowest possible type hints. Leverage `NewType`, `Literal`, and `Annotated` to encode business logic directly into the type system."
+When implementing this solution, you MUST adhere to the following architectural nudge to explore an orthogonal solution manifold:
+
+- **OOP vs Functional**: Favor Object-Oriented patterns, inheritance, and state encapsulation.
+- **Iteration vs Recursion**: Use iterative loops (for/while) and avoid all recursive calls.
+- **Async vs Sync**: Implement using `asyncio` and non-blocking I/O.
+- **Generic vs Specialized**: Use `typing.TypeVar` and generic classes to maximize reuse.
+- **Performance vs Readability**: Use bitwise operators, localized optimizations, and minimize allocations.
+- **Memory vs CPU**: Use `functools.lru_cache` and pre-computed tables to minimize CPU cycles.
+- **Defensive vs Optimistic**: Implement exhaustive input validation and `try/except` blocks.
