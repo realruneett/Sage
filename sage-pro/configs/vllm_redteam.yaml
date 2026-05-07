@@ -5,9 +5,11 @@ agents:
     port: 8004
     gpu_memory_utilization: 0.09
     host: "0.0.0.0"
+    enforce_eager: true
   - name: "redteam_secondary"
     model: "bigcode/starcoder2-15b"
     dtype: "float16"
     port: 8005
     gpu_memory_utilization: 0.09
     host: "0.0.0.0"
+    enforce_eager: true

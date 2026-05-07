@@ -9,7 +9,17 @@ SAGE-PRO (Adversarial Orthogonal Divergence Engine) is a production-grade multi-
 
 ## 🚀 The AODE Advantage
 
-SAGE-PRO breaks the "80GB barrier" of the H100 by maintaining four co-resident models for parallel reasoning. This eliminates VRAM swapping, reduces latency by 90%, and allows for adversarial refinement cycles that are mathematically impossible on smaller hardware.
+SAGE-PRO breaks the "80GB barrier" of the H100 by maintaining four co-resident models for parallel reasoning. This eliminates VRAM swapping, reduces latency by 90%, and prevents **OOM** (Out of Memory) crashes that are common on smaller hardware.
+
+## 📡 API Reference
+
+SAGE-PRO provides a production-ready FastAPI backend:
+
+- `POST /v1/code`: Main entrypoint for adversarial code generation.
+- `POST /v1/review`: Trigger the Red-Team ensemble for an existing snippet.
+- `POST /v1/refactor`: Apply topological-void aware refactoring.
+- `GET /healthz`: Liveness probe.
+- `GET /readyz`: Readiness probe (verifies all vLLM backends).
 
 ### 📊 SOTY Benchmarks
 

@@ -6,10 +6,10 @@ SAGE-PRO (Adversarial Orthogonal Divergence Engine) is a multi-agent coding assi
 
 The system consists of four specialist agents co-resident in 192GB HBM3 memory:
 
-1.  **Architect**: (Qwen-32B) High-level structural design and topological void routing.
-2.  **Implementer**: (DeepSeek-Lite) Turning specs into code with Torsion-warped nudges.
-3.  **Red-Team**: (Ensemble) Adversarial test generation and vulnerability scanning.
-4.  **Synthesizer**: (Qwen-72B) Merging divergent branches and hardening the final solution.
+1.  **Architect**: (`Qwen/Qwen2.5-Coder-32B-Instruct-AWQ`) High-level structural design and topological void routing.
+2.  **Implementer**: (`deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct`) Turning specs into code with Torsion-warped nudges.
+3.  **Red-Team**: (Ensemble: `DeepSeek-V2-Lite` + `StarCoder2-15B`) Adversarial test generation and vulnerability scanning.
+4.  **Synthesizer**: (`Qwen/Qwen2.5-Coder-72B-Instruct-AWQ`) Merging divergent branches and hardening the final solution.
 
 ## Data Flow & Operators
 

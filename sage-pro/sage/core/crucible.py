@@ -37,7 +37,14 @@ async def crucible_loop(
     
     max_cycles = hyperparams.get("max_cycles", 5)
     epsilon = hyperparams.get("epsilon", 0.01)
-    weights = hyperparams.get("weights", {"ruff": 0.1, "mypy": 0.2, "bandit": 0.5, "tests": 1.0})
+    weights = hyperparams.get("damage_weights", {
+        "ruff": 0.1, 
+        "mypy": 0.2, 
+        "bandit": 0.5, 
+        "semgrep": 0.4,
+        "tests": 1.0,
+        "complexity": 0.05
+    })
 
     logger.info("crucible_loop_started", max_cycles=max_cycles)
 
