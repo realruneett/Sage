@@ -1,5 +1,13 @@
-model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
-quantization: null
-gpu_memory_utilization: 0.17
-enforce_eager: true
-max_model_len: 4096
+agents:
+  - name: "redteam_primary"
+    model: "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+    quantization: "awq"
+    port: 8004
+    gpu_memory_utilization: 0.09
+    host: "0.0.0.0"
+  - name: "redteam_secondary"
+    model: "bigcode/starcoder2-15b"
+    dtype: "float16"
+    port: 8005
+    gpu_memory_utilization: 0.09
+    host: "0.0.0.0"

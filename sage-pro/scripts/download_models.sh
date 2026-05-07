@@ -1,18 +1,21 @@
 #!/bin/bash
 set -e
 
-echo "Downloading specialist models for SAGE-CODE..."
+# SAGE-PRO Model Download Script
+# Target: AMD MI300X Optimized AWQ Weights
 
-models=(
-  "Qwen/Qwen2.5-Coder-32B-Instruct"
-  "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
-  "Qwen/Qwen2.5-Coder-72B-Instruct"
-  "BAAI/bge-large-en-v1.5"
+MODELS=(
+    "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
+    "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct"
+    "Qwen/Qwen2.5-Coder-72B-Instruct-AWQ"
+    "bigcode/starcoder2-15b"
 )
 
-mkdir -p models
+mkdir -p ./models
 
-for model in "${models[@]}"; do
-  echo "Downloading $model..."
-  huggingface-cli download "$model" --local-dir "models/$(basename $model)"
+for model in "${MODELS[@]}"; do
+    echo "Downloading $model..."
+    huggingface-cli download "$model" --local-dir "./models/$(basename $model)" --local-dir-use-symlinks False
 done
+
+echo "All SAGE-PRO models downloaded successfully."
