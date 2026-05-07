@@ -23,4 +23,11 @@ radon==6.0.1
 pyperf==2.7.0
 rich>=13.0.0
 matplotlib>=3.7.0
+numpy>=1.24.0
+pyyaml>=6.0.0
+datasets>=2.14.0
+transformers>=4.34.0
+sse-starlette>=1.6.0
+autoawq>=0.1.0
+gradio>=4.0.0
 # hyperfine (system) - assume available in environment

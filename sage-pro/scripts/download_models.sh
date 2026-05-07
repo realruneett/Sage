@@ -13,6 +13,12 @@ MODELS=(
 
 mkdir -p ./models
 
+# Login if token is provided
+if [ ! -z "${HF_TOKEN:-}" ]; then
+    echo "Logging into Hugging Face..."
+    huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
+fi
+
 for model in "${MODELS[@]}"; do
     echo "Downloading $model..."
     huggingface-cli download "$model" --local-dir "./models/$(basename $model)" --local-dir-use-symlinks False
