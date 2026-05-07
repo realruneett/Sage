@@ -2,14 +2,21 @@ name: Nightly Benchmarks
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Nightly at midnight
+    - cron: '0 6 * * *' # Nightly at 6 AM
+  workflow_dispatch:
 
 jobs:
-  benchmark:
+  bench:
     runs-on: [self-hosted, mi300x]
+    
     steps:
     - uses: actions/checkout@v3
-    - name: Run HumanEval+
-      run: python3 -m sage.benchmarks.humaneval_plus
-    - name: Run SWE-Bench-Lite
-      run: python3 -m sage.benchmarks.swe_bench_lite
+    
+    - name: Run SAGE-PRO Benchmarks
+      run: make bench
+      
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: benchmarks/results/

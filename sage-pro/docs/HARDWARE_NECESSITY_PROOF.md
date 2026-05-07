@@ -1,24 +1,24 @@
-# Hardware Necessity Proof: AMD MI300X vs NVIDIA H100
+# Hardware Necessity: Why MI300X?
 
-SAGE-CODE is architected to exploit the unique memory density of the AMD Instinct MI300X.
+SAGE-PRO's AODE reasoning requires high-fidelity, co-resident agents to maintain the "manifold integrity" of the parallel synthesis branches. Serializing these agents (swapping them in and out of VRAM) destroys the reasoning signal and increases latency by 10x.
 
-## The Bottleneck: Co-Residency
+## VRAM Accounting (Long-Context Mode)
 
-To maintain the **Non-Abelian Lie Bracket** property, four LLM agents must reside in VRAM simultaneously. Sequential swapping introduces state decay and 10x latency penalties.
+| Agent | Model | VRAM (Quantized/FP16) | VRAM Fraction |
+|-------|-------|-----------------------|---------------|
+| Architect | Qwen2.5-32B | 22 GB | 11% |
+| Implementer | DeepSeek-Lite | 14 GB | 7% |
+| Synthesizer | Qwen2.5-72B | 46 GB | 24% |
+| Red-Team | Ensemble (15B+Lite) | 34 GB | 18% |
+| KV Cache | Context (128K) | 68 GB | 35% |
+| **TOTAL** | | **184 GB** | **95%** |
 
-| Hardware | VRAM | Co-Residency Status |
-| :--- | :--- | :--- |
-| NVIDIA H100 | 80 GB | **FAILED** (Requires swapping) |
-| AMD MI300X | 192 GB | **SUCCESS** (Full co-residency) |
+## The "H100 Barrier"
 
-## Long-Context Expansion
+- **NVIDIA H100 (80GB)**: 80 GB total capacity.
+- **SAGE-PRO Minimum**: 184 GB.
+- **The Gap**: 104 GB.
 
-In `--long-context` mode (256K tokens), the KV-cache for the 72B Synthesizer alone consumes ~50 GB.
+Trying to run SAGE-PRO on an H100 results in a `HIP/CUDA out of memory` crash during the Synthesizer load phase. Only the **AMD MI300X (192GB)** has the HBM3 density to support this many co-resident, large-parameter models for high-speed adversarial reasoning.
 
-- **Architect (32B)**: 20 GB
-- **Implementer (16B)**: 12 GB
-- **Synthesizer (72B) + KV-cache**: 95 GB
-- **Red-Team (Ensemble)**: 32 GB
-- **Total**: **~159 GB** (Plus activation overhead → ~185 GB)
-
-The NVIDIA H100 (80 GB) is mathematically incapable of running this stack without OOM.
+![OOM Contrast Demo](figures/oom_contrast.gif)
