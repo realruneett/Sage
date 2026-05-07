@@ -1,27 +1,22 @@
-import hashlib
-import time
-from loguru import logger
+import json
+import structlog
+from pathlib import Path
+from typing import Any, Dict
+from sage.core.types import XAITrace
 
-class SageCodeXAI:
-    """SAGE-CODE XAI module for reasoning audit logs."""
-    def __init__(self):
-        self.log = []
+logger = structlog.get_logger(__name__)
 
-    def log_reasoning(self, node: str, content: str):
-        entry = {
-            "timestamp": time.time(),
-            "node": node,
-            "content": content
-        }
-        self.log.append(entry)
-        logger.info(f"[XAI][{node}] {content[:100]}...")
+class TraceLogger:
+    \"\"\"Records reasoning traces to an append-only JSONL file for auditability.\"\"\"
 
-    def get_audit_trail(self) -> str:
-        return "\n".join([f"{e['node']}: {e['content']}" for e in self.log])
+    def __init__(self, log_path: str = "logs/xai_trace.jsonl") -> None:
+        self.log_path = Path(log_path)
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def generate_proof_of_work(self, result: str) -> str:
-        """Timestamps the synthesis with a PoW hash."""
-        ts = str(time.time())
-        payload = f"{result}|{ts}"
-        h = hashlib.sha256(payload.encode()).hexdigest()
-        return f"POW-{h[:12]}-{ts}"
+    def log_step(self, trace: XAITrace) -> None:
+        \"\"\"Appends a single XAI trace entry to the log file.\"\"\"
+        try:
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(trace.dict(), default=str) + "\\n")
+        except Exception as e:
+            logger.error("xai_trace_write_failed", error=str(e))

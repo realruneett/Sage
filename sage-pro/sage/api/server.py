@@ -1,70 +1,85 @@
-from fastapi import FastAPI, HTTPException
-from loguru import logger
 import uvicorn
-import os
+import structlog
+import uuid
+import time
+import httpx
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sage.api.schemas import CodeRequest, ReviewRequest, RefactorRequest, SolveIssueRequest, APIResponse
+from sage.api.streaming import create_streaming_response
+from sage.core.graph import build_graph
+from sage.core.types import SageRequest
 
-from sage.api.schemas import CodeRequest, CodeResponse
-from sage.core.graph import create_sage_code_graph
+logger = structlog.get_logger(__name__)
 
-# Mock agents for initialization
-class MockAgent:
-    async def generate(self, prompt: str):
-        from sage.core.aode import CodeProposal
-        import numpy as np
-        return CodeProposal(code=f"# Generated code for: {prompt[:20]}\ndef main(): pass", tests="assert True", vector=np.random.randn(1024), cycle=0)
+app = FastAPI(title="SAGE-PRO Engine API", version="0.1.0")
 
-agents = {
-    "architect": MockAgent(),
-    "implementer": MockAgent(),
-    "synthesizer": MockAgent(),
-    "red_team": MockAgent()
-}
+# CORS Configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-app = FastAPI(title="SAGE-CODE API", version="0.1.0")
-graph = create_sage_code_graph(agents)
-
-@app.get("/healthz")
-async def healthz() -> Dict[str, str]:
-    """Health check endpoint for the SAGE-CODE engine.
+@app.middleware("http")
+async def add_request_id_and_logging(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    structlog.contextvars.bind_contextvars(request_id=request_id)
     
-    Returns:
-        Dict indicating the system status and target hardware.
-    """
-    return {"status": "ok", "engine": "SAGE-CODE", "hardware": "AMD MI300X"}
-
-@app.post("/v1/code", response_model=CodeResponse)
-async def code_endpoint(request: CodeRequest) -> CodeResponse:
-    """Primary endpoint for adversarially-hardened code generation.
+    start_time = time.time()
+    response = await call_next(request)
+    duration = time.time() - start_time
     
-    Triggers the full SAGE-CODE LangGraph workflow: Ingest -> Route -> Debate -> 
-    Synth -> Crucible -> Verify -> Emit.
+    logger.info("http_request", path=request.url.path, duration=duration, status_code=response.status_code)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
-    Args:
-        request: The CodeRequest containing the task and context.
-
-    Returns:
-        CodeResponse containing the final verified solution and reasoning trace.
-    """
-    logger.info(f"Received coding task: {request.task}")
+@app.post("/v1/code", response_model=APIResponse)
+async def generate_code(req: CodeRequest):
+    \"\"\"Generates adversarially-hardened code for a given task.\"\"\"
+    graph = build_graph()
+    sage_req = SageRequest(
+        task=req.task,
+        context_files=req.context_files,
+        max_cycles=req.max_cycles,
+        priority=req.priority
+    )
+    
     try:
-        inputs = {"task": request.task, "context_files": request.context_files}
-        # Execute the reasoning graph
-        result = await graph.ainvoke(inputs)
-        
-        return CodeResponse(
-            code=result["final_code"],
-            tests=result["final_tests"],
-            tool_report={}, 
-            divergence_index=result["divergence_index"],
-            nash_cycles=len(result["cycle_history"]),
-            damage_trajectory=[c["damage"] for c in result["cycle_history"]],
-            vram_peak_gb=result["vram_peak_gb"],
-            xai_trace=result["xai_trace"]
+        result = await graph.ainvoke({"request": sage_req, "repo_files": []})
+        return APIResponse(
+            request_id=str(uuid.uuid4()),
+            **result
         )
     except Exception as e:
-        logger.error(f"SAGE-CODE Engine Failure: {e}")
-        raise HTTPException(status_code=500, detail=f"Engine failure: {str(e)}")
+        logger.error("graph_invocation_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/v1/review")
+async def review_code(req: ReviewRequest):
+    \"\"\"Performs a Red-Team review of existing code.\"\"\"
+    return {"status": "under_construction"}
+
+@app.get("/healthz")
+async def health_check():
+    \"\"\"Checks if the SAGE-PRO server is alive.\"\"\"
+    return {"status": "healthy"}
+
+@app.get("/readyz")
+async def readiness_check():
+    \"\"\"Checks if all co-resident vLLM backends are reachable.\"\"\"
+    ports = [8001, 8002, 8003, 8004, 8005]
+    async with httpx.AsyncClient() as client:
+        for port in ports:
+            try:
+                resp = await client.get(f"http://localhost:{port}/v1/models")
+                if resp.status_code != 200:
+                    raise HTTPException(status_code=503, detail=f"vLLM port {port} not ready")
+            except:
+                raise HTTPException(status_code=503, detail=f"vLLM port {port} unreachable")
+    return {"status": "all_systems_ready"}
 
 if __name__ == "__main__":
-    from typing import Dict
     uvicorn.run(app, host="0.0.0.0", port=8000)
