@@ -1,27 +1,35 @@
+version: '3.8'
+
 services:
   sage-pro:
     build:
       context: .
       dockerfile: Dockerfile.rocm
+    image: sage-pro:latest
     container_name: sage-pro
-    volumes:
-      - .:/app
-      - ~/.cache/huggingface:/root/.cache/huggingface
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - video
-      - render
-    ipc: host
-    shm_size: 32gb
-    privileged: true # Required for firejail sandbox inside docker
-    ports:
-      - "8000:8000"
-      - "7860:7860"
+    runtime: rocm
+    shm_size: '16gb' # Required for vLLM shared memory
     deploy:
       resources:
         reservations:
           devices:
             - driver: amd
               count: all
+              capabilities: [gpu]
+    volumes:
+      - ./.env:/app/.env
+      - ./models:/app/models
+      - ./demo_output:/app/demo_output
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"     # API
+      - "7860:7860"     # Gradio UI
+      - "8001-8005:8001-8005" # vLLM Endpoints
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,21 +1,55 @@
-FROM rocm/pytorch:rocm6.2_ubuntu22.04_py3.10_pytorch_2.4.0
+# SAGE-PRO ROCm Dockerfile
+# Optimized for AMD MI300X (ROCm 6.2)
 
-ENV PYTORCH_ROCM_ARCH="gfx942"
-ENV DEBIAN_FRONTEND=noninteractive
+# --- Builder Stage ---
+FROM rocm/dev-ubuntu-22.04:6.2 AS builder
+
+WORKDIR /build
+COPY requirements.txt .
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11-dev \
+    python3-pip \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir --prefix=/install -r requirements.txt
+
+# --- Runtime Stage ---
+FROM rocm/dev-ubuntu-22.04:6.2 AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/install/bin:$PATH" \
+    PYTHONPATH="/app"
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    git python3-pip firejail libgl1-mesa-glx \
+# Install system dependencies for SAGE-PRO mechanical oracle
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3-pip \
+    firejail \
+    bubblewrap \
+    hyperfine \
+    git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir vllm==0.6.0 --index-url https://download.pytorch.org/whl/rocm6.2
+# Copy installed python packages from builder
+COPY --from=builder /install /usr/local
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copy source code
 COPY . .
 
-EXPOSE 8000 7860
+# Create log and output directories
+RUN mkdir -p logs demo_output models
 
-CMD ["python3", "-m", "sage.api.server"]
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/healthz || exit 1
+
+EXPOSE 8000 8001-8005
+
+ENTRYPOINT ["python3", "-m", "sage.api.server"]
