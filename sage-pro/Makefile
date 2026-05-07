@@ -15,7 +15,7 @@ bench:
 	python -m sage.benchmarks.compare_single_vs_sage
 
 demo:
-	python demos/demo_sage_code.py
+	python demos/demo_sage_pro.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

@@ -1,9 +1,9 @@
 services:
-  sage-code:
+  sage-pro:
     build:
       context: .
       dockerfile: Dockerfile.rocm
-    container_name: sage-code
+    container_name: sage-pro
     volumes:
       - .:/app
       - ~/.cache/huggingface:/root/.cache/huggingface
