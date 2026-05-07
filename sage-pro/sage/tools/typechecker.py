@@ -5,14 +5,14 @@ from sage.tools.sandbox import run_command_in_sandbox
 logger = structlog.get_logger(__name__)
 
 async def run_mypy(path: str) -> List[Dict[str, Any]]:
-    \"\"\"Invokes Mypy type checker and parses output.
+    """Invokes Mypy type checker and parses output.
 
     Args:
         path: Path to the python file.
 
     Returns:
         List of typing errors.
-    \"\"\"
+    """
     cmd = ["mypy", "--strict", "--no-color-output", "--no-error-summary", path]
     
     ret_code, stdout, stderr = await run_command_in_sandbox(cmd)

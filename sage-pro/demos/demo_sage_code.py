@@ -9,7 +9,7 @@ from sage.core.types import SageRequest
 logger = structlog.get_logger(__name__)
 
 async def run_demo():
-    \"\"\"Runs a full SAGE-PRO pipeline demo for a thread-safe LRU cache.\"\"\"
+    """Runs a full SAGE-PRO pipeline demo for a thread-safe LRU cache."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="Build a thread-safe LRU cache with TTL and async eviction")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode without calling vLLM backends")
@@ -55,7 +55,7 @@ async def run_demo():
         # Write outputs
         (output_dir / "lru_async.py").write_text(final_code)
         (output_dir / "test_lru_async.py").write_text(final_tests)
-        (output_dir / "BENCHMARKS.md").write_text("# SAGE-PRO Benchmarks\\n\\n- Throughput: 1.2M ops/sec\\n- Eviction Latency: 42us")
+        (output_dir / "BENCHMARKS.md").write_text("# SAGE-PRO Benchmarks\n\n- Throughput: 1.2M ops/sec\n- Eviction Latency: 42us")
         
         print("🔄 [CYCLE]  Nash Equilibrium reached in 3 cycles.")
         print("✅ [VERIFY] All mechanical tools passed. Coverage: 94.2%")

@@ -15,7 +15,7 @@ async def crucible_loop(
     tools: Dict[str, Any],
     hyperparams: Dict[str, Any]
 ) -> Tuple[str, List[CrucibleCycle], List[float]]:
-    \"\"\"Implements the Nash Equilibrium refinement loop (The Crucible).
+    """Implements the Nash Equilibrium refinement loop (The Crucible).
 
     Iteratively hardens code by pitting the Red-Team's attacks against the 
     Synthesizer's fixes, grounded by deterministic tool feedback.
@@ -30,7 +30,7 @@ async def crucible_loop(
 
     Returns:
         A tuple of (final_hardened_code, cycle_history, damage_trajectory).
-    \"\"\"
+    """
     current_code = initial_code
     history: List[CrucibleCycle] = []
     trajectory: List[float] = []
