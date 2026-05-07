@@ -12,6 +12,7 @@ async def run_demo():
     \"\"\"Runs a full SAGE-PRO pipeline demo for a thread-safe LRU cache.\"\"\"
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="Build a thread-safe LRU cache with TTL and async eviction")
+    parser.add_argument("--mock", action="store_true", help="Run in mock mode without calling vLLM backends")
     args = parser.parse_args()
 
     output_dir = Path("demo_output")
@@ -38,7 +39,15 @@ async def run_demo():
     
     # Call the actual graph
     try:
-        result = await graph.ainvoke(state)
+        if args.mock:
+            result = {
+                "final_code": "def hardened_lru():\n    # Mocked hardened code\n    pass",
+                "final_tests": "def test_hardened_lru():\n    # Mocked tests\n    pass",
+                "nash_cycles": 3,
+                "vram_peak_gb": 184.2
+            }
+        else:
+            result = await graph.ainvoke(state)
         
         final_code = result.get("final_code", "def lru_cache(): pass")
         final_tests = result.get("final_tests", "def test_lru(): pass")
