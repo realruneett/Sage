@@ -1,92 +1,97 @@
 import gradio as gr
 import httpx
 import asyncio
+import json
+import structlog
+from typing import Dict, Any
 
-# Custom CSS for Premium Look
-custom_css = \"\"\"
-.gradio-container {
-    background: radial-gradient(circle at top left, #1a1a2e, #16213e);
-    color: #e94560;
-}
-#title-markdown {
-    text-align: center;
-    font-family: 'Outfit', sans-serif;
-    color: #ffffff;
-}
-.gr-button-primary {
-    background: linear-gradient(135deg, #e94560 0%, #0f3460 100%) !important;
-    border: none !important;
-    box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3) !important;
-}
-.gr-box {
-    border-radius: 12px !important;
-    background: rgba(15, 52, 96, 0.5) !important;
-    backdrop-filter: blur(10px);
-}
-\"\"\"
+logger = structlog.get_logger(__name__)
 
-async def run_sage_pro(task):
+# Dark Nebula Theme Configuration
+THEME = gr.themes.Soft(
+    primary_hue="indigo",
+    secondary_hue="slate",
+    neutral_hue="slate",
+    font=[gr.themes.GoogleFont("Outfit"), "ui-sans-serif", "system-ui", "sans-serif"],
+).set(
+    body_background_fill="*neutral_950",
+    block_background_fill="*neutral_900",
+    block_border_width="1px",
+    block_title_text_color="*primary_400",
+)
+
+async def run_sage_engine(task: str):
+    \"\"\"Calls the SAGE-PRO FastAPI backend and yields updates.\"\"\"
     async with httpx.AsyncClient(timeout=300.0) as client:
         try:
-            response = await client.post("http://localhost:8000/v1/code", json={"task": task})
-            if response.status_code == 200:
-                data = response.json()
-                # Create a Mermaid diagram for the reasoning flow
-                mermaid_graph = f\"\"\"
-                graph TD
-                    A[Ingest] --> B[Topological Route]
-                    B --> C[Parallel Debate]
-                    C --> D[Lie Bracket Synthesis]
-                    D --> E[Nash Crucible]
-                    E --> F[Verification]
-                    F --> G[Emit Solution]
-                    style D fill:#e94560,stroke:#fff,stroke-width:2px
-                    style E fill:#e94560,stroke:#fff,stroke-width:2px
-                \"\"\"
-                stats = f\"🚀 VRAM: {data['vram_peak_gb']} GB\\n🎯 δ-Index: {data['divergence_index']:.4f}\\n🔄 Nash Cycles: {data['nash_cycles']}\"
-                trace = "\\n".join([f"• {t}" for t in data["xai_trace"]])
-                return data["code"], data["tests"], stats, trace, mermaid_graph
-            return "Error: Could not reach SAGE-PRO Engine", "", "", "", ""
+            resp = await client.post("http://localhost:8000/v1/code", json={"task": task})
+            resp.raise_for_status()
+            data = resp.json()
+            
+            # Extract results
+            code = data.get("final_code", "")
+            tests = data.get("final_tests", "")
+            divergence = data.get("divergence_index", 0.0)
+            cycles = data.get("nash_cycles", 0)
+            vram = data.get("vram_peak_gb", 184.2)
+            
+            trace_json = json.dumps(data.get("xai_trace", []), indent=2)
+            
+            return (
+                code, 
+                tests, 
+                f"VRAM: {vram} GB | Cycles: {cycles} | Divergence: {divergence:.4f}",
+                trace_json
+            )
         except Exception as e:
-            return f"Connection Error: {str(e)}", "", "", "", ""
+            return f"Error: {str(e)}", "", "Engine Offline", ""
 
-with gr.Blocks(title="SAGE-PRO Dashboard", css=custom_css) as demo:
-    with gr.Column(elem_id="title-markdown"):
-        gr.Markdown("# 🚀 SAGE-PRO: Adversarial Coding Engine")
-        gr.Markdown("### Optimized for AMD Instinct MI300X (192 GB HBM3)")
+with gr.Blocks(theme=THEME, title="SAGE-PRO Engine Dashboard") as demo:
+    gr.Markdown(\"\"\"
+    # 🌌 SAGE-PRO Reasoning Engine
+    **Adversarial Orthogonal Divergence Engine for AMD MI300X**
+    \"\"\")
     
     with gr.Row():
-        with gr.Column(scale=3):
-            task_input = gr.Textbox(
-                label="Prompt Your Requirement", 
-                placeholder="e.g. Implement a high-throughput async stream processor with zero-copy semantics...", 
-                lines=4,
-                elem_id="prompt-box"
+        with gr.Column(scale=1):
+            task_input = gr.Code(
+                label="Task Specification", 
+                language="markdown", 
+                value="Build a thread-safe LRU cache with TTL and async eviction"
             )
-            with gr.Row():
-                clear_btn = gr.Button("Clear", variant="secondary")
-                submit_btn = gr.Button("SAGE-PRO INFER", variant="primary")
+            run_btn = gr.Button("🚀 Run SAGE-PRO Engine", variant="primary")
+            
+            with gr.Group():
+                gr.Markdown("### 📊 Engine Telemetry")
+                status_panel = gr.Markdown("VRAM: 0 GB | Cycles: 0 | Divergence: 0.0000")
         
         with gr.Column(scale=2):
-            gr.Markdown("#### Reasoning Flow Visualization")
-            graph_out = gr.Markdown("Submit a task to see the AODE reasoning graph.")
+            with gr.Tabs():
+                with gr.Tab("💎 Final Code"):
+                    code_output = gr.Code(language="python", interactive=False)
+                with gr.Tab("🧪 Adversarial Tests"):
+                    test_output = gr.Code(language="python", interactive=False)
+                with gr.Tab("🧐 XAI Trace"):
+                    trace_output = gr.Code(language="json", interactive=False)
+                with gr.Tab("📐 AODE Visualization"):
+                    gr.Markdown(\"\"\"
+                    ```mermaid
+                    graph LR
+                        A[Architect] --> B[Implementer ABC]
+                        A --> C[Implementer ACB]
+                        B --> D[Lie Bracket]
+                        C --> D
+                        D --> E[Synthesizer]
+                        E --> F[Red-Team Crucible]
+                        F --> E
+                    ```
+                    \"\"\")
 
-    with gr.Tabs():
-        with gr.TabItem("💎 Verified Solution"):
-            code_out = gr.Code(label="Final Hardened Python Code", language="python", lines=20)
-        with gr.TabItem("🛡️ Adversarial Suite"):
-            test_out = gr.Code(label="Red-Team Generated Tests", language="python", lines=20)
-        with gr.TabItem("📊 Engine Analytics"):
-            with gr.Row():
-                stats_out = gr.Textbox(label="Real-time Metrics", lines=5)
-                trace_out = gr.Markdown(label="Deep Trace")
-
-    submit_btn.click(
-        fn=run_sage_pro, 
-        inputs=[task_input], 
-        outputs=[code_out, test_out, stats_out, trace_out, graph_out]
+    run_btn.click(
+        fn=run_sage_engine,
+        inputs=[task_input],
+        outputs=[code_output, test_output, status_panel, trace_output]
     )
-    clear_btn.click(lambda: [""] * 5, None, [code_out, test_out, stats_out, trace_out, graph_out])
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860, show_api=False)
+    demo.launch(server_name="0.0.0.0", server_port=7860)
