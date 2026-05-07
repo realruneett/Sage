@@ -1,10 +1,16 @@
+# AODE Reasoning Hyperparameters
 epsilon: 0.05
 delta: 0.02
 max_cycles: 4
-alpha: 0.7
+alpha_divergence_threshold: 0.15
+
 damage_weights:
-  test_failure: 1.00
-  type_error: 0.40
-  security_finding: 0.80
-  lint_error: 0.10
-  complexity_excess: 0.20
+  ruff: 0.1
+  mypy: 0.2
+  bandit: 0.5
+  semgrep: 0.4
+  tests: 1.0
+  complexity: 0.05
+
+embedding_model: "BAAI/bge-small-en-v1.5"
+index_dims: 384

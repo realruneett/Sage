@@ -1,26 +1,69 @@
 import pytest
-import asyncio
-from sage.core.aode import CodeProposal, nash_refine
+from unittest.mock import AsyncMock, MagicMock
+from sage.core.crucible import crucible_loop
+from sage.core.types import ToolReport
 
 @pytest.mark.asyncio
-async def test_crucible_convergence():
-    """Verifies that the Nash loop converges as damage decreases."""
-    async def mock_red(code):
-        from unittest.mock import MagicMock
-        m = MagicMock()
-        m.tests = "assert True"
-        return m
-        
-    async def mock_synth(prop, report):
-        return CodeProposal(code=prop.code, tests="", vector=prop.vector, cycle=prop.cycle + 1)
-        
-    async def mock_tool(code, tests):
-        # Decrease damage over cycles
-        cycle = int(code.split()[-1]) if code.split() else 0
-        return {"total_damage": max(0, 0.8 - 0.3 * cycle)}
-
-    initial = CodeProposal(code="Initial 0", tests="", vector=[0], cycle=0)
-    final, history = await nash_refine(initial, mock_red, mock_synth, mock_tool, eps=0.1)
+async def test_crucible_stops_on_epsilon() -> None:
+    \"\"\"Asserts the loop stops when damage is below epsilon.\"\"\"
+    red_team = MagicMock()
+    red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": []})
     
-    assert len(history) <= 4
-    assert history[-1]["damage"] < 0.8
+    synthesizer = MagicMock()
+    synthesizer.merge = AsyncMock(return_value="clean code")
+    
+    # Mock tool that returns clean report (0 damage)
+    mock_tool = AsyncMock(return_value=ToolReport(tests_passed=True, total_damage=0.0))
+    tools = {"ruff": AsyncMock(return_value=[]), "mypy": AsyncMock(return_value=[]), 
+             "bandit": AsyncMock(return_value=[]), "sandbox": mock_tool}
+    
+    hyperparams = {"epsilon": 0.05, "max_cycles": 4}
+    
+    code, history, trajectory = await crucible_loop(
+        "spec", "initial", red_team, synthesizer, tools, hyperparams
+    )
+    
+    assert len(history) == 1
+    assert trajectory[0] < 0.05
+
+@pytest.mark.asyncio
+async def test_crucible_stops_on_max_cycles() -> None:
+    \"\"\"Asserts the loop stops after max_cycles even if damage is high.\"\"\"
+    red_team = MagicMock()
+    red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": ["flaw"]})
+    
+    synthesizer = MagicMock()
+    synthesizer.merge = AsyncMock(return_value="still dirty code")
+    
+    # Mock tool that returns high damage forever
+    mock_tool = AsyncMock(return_value=ToolReport(tests_passed=False, total_damage=1.0))
+    tools = {"ruff": AsyncMock(return_value=[{}]), "mypy": AsyncMock(return_value=[]), 
+             "bandit": AsyncMock(return_value=[]), "sandbox": mock_tool}
+    
+    hyperparams = {"epsilon": 0.01, "max_cycles": 3}
+    
+    code, history, trajectory = await crucible_loop(
+        "spec", "initial", red_team, synthesizer, tools, hyperparams
+    )
+    
+    assert len(history) == 3
+    assert len(trajectory) == 3
+
+@pytest.mark.asyncio
+async def test_crucible_records_full_trajectory() -> None:
+    \"\"\"Asserts the trajectory length matches the cycles run.\"\"\"
+    red_team = MagicMock()
+    red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": []})
+    synthesizer = MagicMock()
+    synthesizer.merge = AsyncMock(return_value="code")
+    
+    tools = {"ruff": AsyncMock(return_value=[]), "mypy": AsyncMock(return_value=[]), 
+             "bandit": AsyncMock(return_value=[]), "sandbox": AsyncMock(return_value=ToolReport())}
+    
+    hyperparams = {"epsilon": 0.001, "max_cycles": 2}
+    
+    _, history, trajectory = await crucible_loop(
+        "spec", "initial", red_team, synthesizer, tools, hyperparams
+    )
+    
+    assert len(trajectory) == len(history)
