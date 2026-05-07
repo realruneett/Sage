@@ -1,35 +1,61 @@
-import pytest
 import numpy as np
-from sage.core.aode import topological_route, torsion_warp, CodeProposal
+import pytest
+from sage.core.aode import (
+    persistent_homology_features,
+    torsion_perpendicular,
+    lie_bracket_divergence,
+    nash_damage
+)
 
-def test_topological_route() -> None:
-    """Verifies that topological routing identifies the k-most novel regions."""
-    query = np.random.randn(1024)
-    corpus = np.random.randn(20, 1024)
-    indices, (b1, b2) = topological_route(query, corpus, k=5)
-    assert len(indices) == 5
-    assert isinstance(b1, int)
-    assert isinstance(b2, int)
+def test_persistent_homology_features_random_cloud() -> None:
+    \"\"\"Asserts that b0 >= 1 on a random point cloud.\"\"\"
+    points = np.random.randn(50, 16)
+    features = persistent_homology_features(points)
+    assert features["b0"] >= 1
+    assert isinstance(features["voids"], list)
 
-def test_torsion_warp() -> None:
-    """Verifies that torsion warping produces a distinct unit vector."""
-    vec = np.random.randn(1024)
-    warped = torsion_warp(vec, alpha=0.5)
-    assert np.isclose(np.linalg.norm(warped), 1.0)
-    assert not np.array_equal(vec, warped)
+def test_torsion_perpendicular_orthogonal() -> None:
+    \"\"\"Asserts that the torsion nudge is orthogonal to the design vector.\"\"\"
+    design = np.array([1.0, 0.0, 0.0])
+    basis = np.array([[0.0, 1.0, 0.0]])
+    perp = torsion_perpendicular(design, basis)
+    dot_product = np.dot(design, perp)
+    assert abs(dot_product) < 1e-6
 
-def test_code_proposal() -> None:
-    """Verifies the CodeProposal data structure."""
-    p = CodeProposal(code="print(1)", tests="assert 1", vector=np.zeros(10), cycle=0)
-    assert p.damage == 1.0
-    assert p.code == "print(1)"
+def test_torsion_perpendicular_unit_norm() -> None:
+    \"\"\"Asserts that the torsion nudge is a unit vector.\"\"\"
+    design = np.random.randn(1024)
+    basis = np.random.randn(1, 1024)
+    perp = torsion_perpendicular(design, basis)
+    norm = np.linalg.norm(perp)
+    assert abs(norm - 1.0) < 1e-6
 
-def test_lie_bracket_divergence() -> None:
-    """Verifies that the Lie bracket correctly computes synthesis divergence."""
-    from sage.core.aode import lie_bracket_synthesis
-    v1 = np.ones(10)
-    v2 = np.zeros(10)
-    p1 = CodeProposal("A", "", v1, 0)
-    p2 = CodeProposal("B", "", v2, 0)
-    _, div = lie_bracket_synthesis(p1, p2)
-    assert div > 3.0 # norm of sqrt(10)
+def test_lie_bracket_divergence_identical_zero() -> None:
+    \"\"\"Asserts that identical code results in zero divergence.\"\"\"
+    code = "def main():\\n    print('hello')\\n"
+    divergence = lie_bracket_divergence(code, code)
+    assert divergence == 0.0
+
+def test_lie_bracket_divergence_different_positive() -> None:
+    \"\"\"Asserts that different code results in positive divergence.\"\"\"
+    code_abc = "def add(a, b): return a + b"
+    code_acb = "def sub(a, b): return a - b"
+    divergence = lie_bracket_divergence(code_abc, code_acb)
+    assert 0.0 < divergence <= 1.0
+
+def test_nash_damage_monotonic() -> None:
+    \"\"\"Asserts that adding a violation increases the damage score.\"\"\"
+    report_clean = {"ruff": [], "mypy": []}
+    report_dirty = {"ruff": ["E501"], "mypy": []}
+    weights = {"ruff": 0.5, "mypy": 1.0}
+    
+    damage_clean = nash_damage(report_clean, weights)
+    damage_dirty = nash_damage(report_dirty, weights)
+    
+    assert damage_dirty > damage_clean
+
+def test_nash_damage_zero_clean() -> None:
+    \"\"\"Asserts that a clean report results in zero damage.\"\"\"
+    report = {"ruff": [], "mypy": [], "bandit": []}
+    weights = {"ruff": 0.1, "mypy": 0.1, "bandit": 0.1}
+    assert nash_damage(report, weights) == 0.0

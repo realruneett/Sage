@@ -1,17 +1,36 @@
+import ast
 import pytest
-import numpy as np
-from sage.core.aode import CodeProposal, lie_bracket_synthesis
+from hypothesis import given, strategies as st
+from sage.core.aode import lie_bracket_divergence
 
-def test_lie_bracket_nonzero():
-    """
-    Asserts that [ABC] - [ACB] != 0, proving non-abelian synthesis.
-    """
-    vec_abc = np.random.randn(1024)
-    vec_acb = np.random.randn(1024)
+@given(
+    code_a=st.text(min_size=1, alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters=("\\0",))),
+    code_b=st.text(min_size=1, alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters=("\\0",)))
+)
+def test_lie_bracket_divergence_properties(code_a: str, code_b: str) -> None:
+    \"\"\"Property test for Lie Bracket divergence.
     
-    out_abc = CodeProposal(code="ABC", tests="", vector=vec_abc, cycle=0)
-    out_acb = CodeProposal(code="ACB", tests="", vector=vec_acb, cycle=0)
+    Verifies that:
+    1. Divergence is always between [0, 1].
+    2. Divergence is 0 if and only if AST is equal.
+    \"\"\"
+    # Filter for valid Python snippets to avoid parse errors in the operator
+    try:
+        ast.parse(code_a)
+        ast.parse(code_b)
+    except Exception:
+        # Ignore non-parseable random text for this property
+        return
+
+    div = lie_bracket_divergence(code_a, code_b)
     
-    _, divergence = lie_bracket_synthesis(out_abc, out_acb)
+    assert 0.0 <= div <= 1.0
     
-    assert divergence > 1e-3
+    # Check AST equality
+    dump_a = ast.dump(ast.parse(code_a))
+    dump_b = ast.dump(ast.parse(code_b))
+    
+    if dump_a == dump_b:
+        assert div == 0.0
+    else:
+        assert div > 0.0
