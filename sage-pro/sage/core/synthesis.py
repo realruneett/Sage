@@ -1,49 +1,66 @@
 import asyncio
+import structlog
 from typing import Tuple, Any
-from sage.core.aode import CodeProposal, lie_bracket_synthesis
+from sage.core.aode import lie_bracket_divergence
 
-class CodeSynthesizer:
-    """Non-Abelian Code Synthesis via parallel ABC/ACB branches.
+logger = structlog.get_logger(__name__)
 
-    This module implements the core 'reasoning debate' by running parallel 
-    synthesis paths (Design-first vs Threat-first) and measuring their divergence.
-    """
-    def __init__(self, agent: Any) -> None:
-        """Initializes the synthesizer with the high-parameter agent (e.g., Qwen-72B).
-        
-        Args:
-            agent: The specialist agent responsible for synthesis.
-        """
-        self.agent = agent
+async def parallel_branches(
+    architect_spec: str,
+    implementer: Any,
+    red_team_pre: str,
+    torsion_a: str,
+    torsion_b: str
+) -> Tuple[str, str]:
+    \"\"\"Executes parallel ABC (Design-first) and ACB (Threat-first) synthesis branches.
 
-    async def synthesize(self, arch: str, impl: str, red: str) -> Tuple[CodeProposal, float]:
-        """Runs parallel synthesis branches to compute the Lie bracket divergence.
+    This implements the non-abelian property of the AODE system. The branches 
+    must run in parallel to maintain the integrity of the divergence signal.
 
-        Args:
-            arch: Architectural specification.
-            impl: Candidate implementation.
-            red: Red-Team attack report.
+    Args:
+        architect_spec: The design spec from the Architect.
+        implementer: The Implementer agent instance.
+        red_team_pre: Prior findings to bias branch ACB.
+        torsion_a: Primary torsion nudge for branch ABC.
+        torsion_b: Secondary torsion nudge for branch ACB.
 
-        Returns:
-            Tuple containing the merged CodeProposal and the divergence index.
-        """
-        # We simulate the Non-Abelian property by passing the components in 
-        # different priority orders to the LLM's context window.
-        
-        # Branch ABC: Priority given to Architectural integrity
-        task_abc = self.agent.generate(
-            f"Synthesize the following code with priority on ARCHITECTURAL CONTRACT:\n"
-            f"Arch: {arch}\nImpl: {impl}\nRed: {red}"
-        )
-        
-        # Branch ACB: Priority given to Threat Mitigation
-        task_acb = self.agent.generate(
-            f"Synthesize the following code with priority on THREAT MITIGATION (Red-Team):\n"
-            f"Arch: {arch}\nRed: {red}\nImpl: {impl}"
-        )
-        
-        # Execute co-residently on MI300X
-        out_abc, out_acb = await asyncio.gather(task_abc, task_acb)
-        
-        # Calculate divergence [ABC] - [ACB]
-        return lie_bracket_synthesis(out_abc, out_acb)
+    Returns:
+        A tuple of (code_abc, code_acb).
+    \"\"\"
+    logger.info("launching_parallel_synthesis_branches")
+    
+    # ABC: Architect -> Implementer with Torsion A
+    # ACB: Architect -> Implementer with RedTeam Prior + Torsion B
+    tasks = [
+        implementer.implement(architect_spec, torsion_a),
+        implementer.implement(f"{architect_spec}\\n\\nPrior Issues: {red_team_pre}", torsion_b)
+    ]
+    
+    results = await asyncio.gather(*tasks)
+    return results[0], results[1]
+
+async def synthesize(
+    spec: str,
+    code_abc: str,
+    code_acb: str,
+    red_team_findings: str,
+    synthesizer: Any
+) -> Tuple[str, float]:
+    \"\"\"Merges divergent branches into a single hardened solution.
+
+    Args:
+        spec: Original design spec.
+        code_abc: Branch ABC code.
+        code_acb: Branch ACB code.
+        red_team_findings: Findings from the Red-Team ensemble.
+        synthesizer: The Synthesizer agent instance.
+
+    Returns:
+        A tuple of (final_code, divergence_index).
+    \"\"\"
+    # Calculate Lie Bracket [ABC, ACB]
+    div_index = lie_bracket_divergence(code_abc, code_acb)
+    logger.info("lie_bracket_divergence_calculated", divergence=div_index)
+    
+    final_code = await synthesizer.merge(spec, code_abc, code_acb, red_team_findings)
+    return final_code, div_index
