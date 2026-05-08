@@ -5,7 +5,7 @@
 FROM rocm/dev-ubuntu-22.04:6.2 AS builder
 
 WORKDIR /build
-COPY requirements.txt .
+COPY requirements.txt requirements-core.txt .
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -14,7 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir --prefix=/install -r requirements.txt
+# Core deps first — server always starts even if ML deps fail
+RUN pip3 install --no-cache-dir --prefix=/install -r requirements-core.txt
+
+# Heavy ML deps separately — failure here won't kill the server
+RUN pip3 install --no-cache-dir --prefix=/install -r requirements.txt || \
+    echo "WARNING: Some ML dependencies failed to install"
 
 # --- Runtime Stage ---
 FROM rocm/dev-ubuntu-22.04:6.2 AS runtime
@@ -22,7 +27,7 @@ FROM rocm/dev-ubuntu-22.04:6.2 AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/install/bin:$PATH" \
-    PYTHONPATH="/app"
+    PYTHONPATH="/usr/local/lib/python3.10/site-packages:/app"
 
 WORKDIR /app
 
