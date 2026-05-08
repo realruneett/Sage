@@ -9,7 +9,7 @@ COPY requirements.txt .
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.11-dev \
+    python3.10-dev \
     python3-pip \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -28,7 +28,7 @@ WORKDIR /app
 
 # Install system dependencies for SAGE-PRO mechanical oracle
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.11 \
+    python3.10 \
     python3-pip \
     firejail \
     bubblewrap \
