@@ -3,116 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SAGE-PRO: Strategic Adversarial Generative Engine for mathematically hardened code generation.">
-  <title>SAGE-PRO | Adversarial Code Engine</title>
+  <meta name="description" content="SAGE-PRO: Nash Equilibrium code generation engine.">
+  <title>SAGE-PRO</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x1F9E0;</text></svg>">
 </head>
 <body>
 
-  <!-- ═══ LOGIN PAGE ═══ -->
+  <!-- ═══ LOGIN ═══ -->
   <div id="loginPage" class="login-page">
+    <div class="login-bg">
+      <div class="login-orb purple"></div>
+      <div class="login-orb cyan"></div>
+    </div>
     <div class="login-card">
-      <div class="login-logo">SAGE-PRO</div>
-      <div class="login-subtitle">Adversarial Orthogonal Divergence Engine</div>
-
-      <div id="loginError" class="login-error"></div>
-
-      <form id="loginForm" onsubmit="return false;">
-        <div class="form-group">
-          <label for="loginEmail">Email</label>
-          <input type="email" id="loginEmail" placeholder="engineer@company.com" required autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" placeholder="Enter your password" required autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn-primary" id="loginBtn">LAUNCH ENGINE</button>
-      </form>
-
-      <div class="login-footer">
-        MI300X Cluster &middot; Nash Equilibrium Verified &middot; v1.0.0
+      <div class="login-brand">
+        <h1>SAGE-PRO</h1>
+        <p>Adversarial Code Engine</p>
       </div>
+      <div id="loginError" class="login-error"></div>
+      <form id="loginForm" onsubmit="return false;">
+        <div class="form-field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="you@company.com" required autocomplete="email">
+        </div>
+        <div class="form-field">
+          <label>Password</label>
+          <input type="password" id="loginPass" placeholder="Enter password" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">Launch Engine</button>
+      </form>
+      <div class="login-footer">MI300X Verified &middot; Nash Equilibrium &middot; v1.0.0</div>
     </div>
   </div>
 
-  <!-- ═══ MAIN APPLICATION ═══ -->
-  <div id="appContainer" class="app-container">
-    <div class="app-layout">
+  <!-- ═══ APP ═══ -->
+  <div id="app" class="app">
+    <div class="app-inner">
 
-      <!-- ── Sidebar ── -->
+      <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <span class="sidebar-logo">SAGE-PRO</span>
-          <span class="sidebar-version">v1.0.0</span>
+        <div class="sidebar-top">
+          <span class="sidebar-brand">SAGE</span>
+          <span class="sidebar-badge">PRO</span>
         </div>
 
-        <button class="new-chat-btn" id="newChatBtn" title="Start a new session">
-          <span>+</span> New Session
+        <button class="new-session-btn" id="newChatBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Session
         </button>
 
-        <div class="history-section" id="historySection">
-          <div class="history-label">Today</div>
-          <!-- History items injected by JS -->
+        <div class="history-list" id="historyList">
+          <div class="history-group-label">Recent</div>
         </div>
 
-        <div class="sidebar-footer">
-          <div class="user-avatar" id="userAvatar">U</div>
-          <div class="user-info">
-            <div class="user-name" id="userName">User</div>
-            <div class="user-plan">PRO License</div>
+        <div class="sidebar-bottom">
+          <div class="avatar" id="userAvatar">U</div>
+          <div class="user-meta">
+            <div class="name" id="userName">User</div>
+            <div class="plan">PRO License</div>
           </div>
-          <button class="logout-btn" id="logoutBtn" title="Logout">&#x2192;</button>
+          <button class="btn-icon" id="logoutBtn" title="Sign out">&#x2192;</button>
         </div>
       </aside>
 
-      <!-- ── Main Content ── -->
-      <main class="main-content">
-        <div class="chat-header">
-          <span class="chat-title" id="chatTitle">New Session</span>
-          <span class="model-badge">Mistral-123B + Llama-70B + Qwen-32B + DeepSeek</span>
+      <!-- Main -->
+      <main class="main">
+        <div class="topbar">
+          <span class="topbar-title" id="chatTitle">New Session</span>
+          <span class="model-tag">Mistral-123B + Llama-70B + Qwen-32B</span>
         </div>
 
-        <div class="chat-area" id="chatArea">
-          <!-- Welcome Screen -->
-          <div class="welcome-screen" id="welcomeScreen">
-            <div class="welcome-logo">SAGE-PRO</div>
-            <div class="welcome-desc">
-              Multi-agent adversarial reasoning engine. 
-              Your code is attacked, defended, and hardened until it reaches Nash Equilibrium.
-            </div>
-            <div class="quick-actions">
-              <div class="quick-action" onclick="setPrompt('Build a thread-safe LRU cache with TTL and async eviction in Python')">
-                <div class="quick-action-title">LRU Cache</div>
-                <div class="quick-action-desc">Thread-safe with TTL and async eviction</div>
+        <div class="chat-scroll" id="chatArea">
+          <div class="welcome" id="welcomeScreen">
+            <h2>What shall we build?</h2>
+            <p>Describe any coding task. Four adversarial agents will attack, defend, and harden your code until Nash Equilibrium is reached.</p>
+            <div class="suggestions">
+              <div class="suggestion" onclick="fillPrompt('Build a thread-safe LRU cache with TTL and async eviction in Python')">
+                <h4>LRU Cache</h4>
+                <span>Thread-safe with TTL eviction</span>
               </div>
-              <div class="quick-action" onclick="setPrompt('Implement a rate limiter using token bucket algorithm with Redis backend')">
-                <div class="quick-action-title">Rate Limiter</div>
-                <div class="quick-action-desc">Token bucket with Redis backend</div>
+              <div class="suggestion" onclick="fillPrompt('Implement a token-bucket rate limiter with sliding window and Redis backend')">
+                <h4>Rate Limiter</h4>
+                <span>Token bucket + Redis backend</span>
               </div>
-              <div class="quick-action" onclick="setPrompt('Create a WebSocket message broker with pub/sub channels and authentication')">
-                <div class="quick-action-title">WebSocket Broker</div>
-                <div class="quick-action-desc">Pub/sub with auth channels</div>
+              <div class="suggestion" onclick="fillPrompt('Create a WebSocket message broker with pub/sub channels and JWT auth')">
+                <h4>WebSocket Broker</h4>
+                <span>Pub/sub with JWT authentication</span>
               </div>
-              <div class="quick-action" onclick="setPrompt('Build a distributed task queue with retry logic and dead-letter handling')">
-                <div class="quick-action-title">Task Queue</div>
-                <div class="quick-action-desc">Distributed with retry and DLQ</div>
+              <div class="suggestion" onclick="fillPrompt('Build a distributed task queue with exponential retry and dead-letter handling')">
+                <h4>Task Queue</h4>
+                <span>Distributed with retry + DLQ</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Input Area -->
-        <div class="input-area">
-          <div class="input-wrapper">
-            <div class="input-box">
-              <textarea id="messageInput" placeholder="Describe the code you need..." rows="1"
-                onkeydown="handleKeyDown(event)"></textarea>
-              <button class="send-btn" id="sendBtn" onclick="sendMessage()" title="Send">&#x2191;</button>
+        <div class="input-dock">
+          <div class="input-frame">
+            <div class="input-row">
+              <textarea id="msgInput" placeholder="Describe the code you need..." rows="1" onkeydown="onKey(event)"></textarea>
+              <button class="send-btn" id="sendBtn" onclick="send()" title="Send">&#x2191;</button>
             </div>
-            <div class="input-hint">
-              SAGE-PRO uses 4 adversarial agents to harden your code via Nash Equilibrium
-            </div>
+            <div class="input-meta">SAGE-PRO hardens code via adversarial Nash Equilibrium</div>
           </div>
         </div>
       </main>
