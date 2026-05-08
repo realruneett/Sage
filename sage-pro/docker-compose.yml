@@ -23,7 +23,6 @@ services:
       - .env
     ports:
       - "8000:8000"
-      - "7860:7860"
       - "8001-8005:8001-8005"
     restart: unless-stopped
     healthcheck:
@@ -31,3 +30,15 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  sage-ui:
+    image: sage-pro:latest
+    container_name: sage-ui
+    depends_on:
+      - sage-pro
+    environment:
+      - PYTHONPATH=/usr/local/lib/python3.10/site-packages:/app
+    ports:
+      - "7860:7860"
+    entrypoint: ["python3", "-m", "sage.ui.dashboard"]
+    restart: unless-stopped
