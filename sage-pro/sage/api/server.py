@@ -10,9 +10,14 @@ from sage.api.streaming import create_streaming_response
 from sage.core.graph import build_graph
 from sage.core.types import SageRequest
 
+from sage.api.stream_endpoint import router as stream_router
+
 logger = structlog.get_logger(__name__)
 
 app = FastAPI(title="SAGE-PRO Engine API", version="1.0.0")
+
+# Register the streaming SSE endpoint for the Gradio frontend
+app.include_router(stream_router)
 
 # CORS Configuration
 app.add_middleware(
