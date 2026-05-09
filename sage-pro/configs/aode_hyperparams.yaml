@@ -235,3 +235,9 @@ skill_distillation:
   reward_threshold: 0.85
   collection_name: golden_skills
   top_k: 2
+
+# Novel System 6: Topological Self-Play (Chaos Auto-Curriculum)
+chaos_curriculum:
+  enabled: true
+  max_daily_games: 5
+  target_q_threshold: 0.6

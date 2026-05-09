@@ -211,6 +211,7 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
     from sage.core.adversarial_perturber import AdversarialLatentPerturber
     from sage.core.ast_diff_reward import ASTDiffRewardCrystallizer
     from sage.core.skill_distiller import SkillDistiller
+    from sage.core.chaos_curriculum import ChaosCurriculumEngine
 
     subsystems = {
         "ctr_engine": CTREngine(hyperparams),
@@ -225,6 +226,7 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
         "adversarial_perturber": AdversarialLatentPerturber(hyperparams),
         "ast_diff_reward": ASTDiffRewardCrystallizer(hyperparams),
         "skill_distiller": SkillDistiller(hyperparams),
+        "chaos_curriculum": ChaosCurriculumEngine(hyperparams),
     }
 
     # Mistake Library requires ChromaDB — only init if CHROMA_PATH is set
