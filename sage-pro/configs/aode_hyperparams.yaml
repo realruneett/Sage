@@ -105,3 +105,22 @@ correction_patterns:
   - "(fix\\s+your\\s+(answer|response|code|mistake))"
   - "(try\\s+again[,.]?\\s+(that|it|this)\\s+is\\s+wrong)"
 
+correction_semantic_threshold: 0.25
+
+# UDRK (Universal Deep Reasoning Kernel)
+udrk:
+  min_candidates: 5
+  min_lenses_per_cycle: 3
+  max_cycles_before_exit: 3
+
+# Mistake Library
+mistake_library:
+  top_k: 3
+  collection_name: mistake_library
+
+# Embedding Dimensions
+message_embedding_dims: 1536
+
+# Scheduler
+daily_update_hour: 2
+daily_update_minute: 0
