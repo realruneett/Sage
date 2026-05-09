@@ -3,12 +3,8 @@ import structlog
 import uuid
 import time
 import httpx
-import os
-from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from sage.api.schemas import CodeRequest, ReviewRequest, RefactorRequest, SolveIssueRequest, APIResponse
 from sage.api.streaming import create_streaming_response
 from sage.core.graph import build_graph
@@ -27,16 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve static frontend files
-STATIC_DIR = Path(__file__).resolve().parent.parent / "ui" / "static"
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-@app.get("/")
-async def serve_frontend():
-    """Serves the SAGE-PRO Dark Nebula Dashboard."""
-    return FileResponse(str(STATIC_DIR / "index.html"))
-
 
 @app.middleware("http")
 async def add_request_id_and_logging(request: Request, call_next):
@@ -50,6 +36,16 @@ async def add_request_id_and_logging(request: Request, call_next):
     logger.info("http_request", path=request.url.path, duration=duration, status_code=response.status_code)
     response.headers["X-Request-ID"] = request_id
     return response
+
+
+@app.get("/")
+async def root():
+    """SAGE-PRO API root — headless engine, no frontend."""
+    return {
+        "service": "SAGE-PRO Engine",
+        "version": "1.0.0",
+        "endpoints": ["/v1/code", "/v1/review", "/healthz", "/readyz"],
+    }
 
 
 @app.post("/v1/code", response_model=APIResponse)
