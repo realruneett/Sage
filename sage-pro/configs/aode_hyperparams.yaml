@@ -124,3 +124,69 @@ message_embedding_dims: 1536
 # Scheduler
 daily_update_hour: 2
 daily_update_minute: 0
+
+# Ollama Deployment Config
+ollama:
+  base_url: http://localhost:11434
+  timeout: 120
+  max_tool_rounds: 6
+  models:
+    orchestrator: qwen2.5:72b
+    architect: qwen2.5:72b
+    implementer: qwen2.5-coder:32b
+    synthesizer: deepseek-coder-v2:16b
+    red_team: qwen2.5-coder:32b
+  options:
+    num_ctx: 32768
+    num_gpu: -1
+  env:
+    OLLAMA_GPU_LAYERS: -1
+    OLLAMA_NUM_PARALLEL: 4
+    OLLAMA_MAX_LOADED_MODELS: 4
+    OLLAMA_FLASH_ATTENTION: 1
+    HSA_OVERRIDE_GFX_VERSION: 9.4.2
+
+# Tool Config
+tool_definitions_path: configs/tool_definitions.json
+tool_charters:
+  architect: sage/prompts/architect_charter.md
+  implementer: sage/prompts/implementer_charter.md
+  synthesizer: sage/prompts/synthesizer_charter.md
+  red_team: sage/prompts/red_team_charter.md
+  orchestrator: sage/prompts/orchestrator.md
+
+# Agent Tool Permissions
+agent_tool_permissions:
+  architect:
+    - repo_scan
+    - file_read
+    - browser_fetch
+    - web_search
+    - memory_query
+  implementer:
+    - file_read
+    - web_search
+    - browser_fetch
+    - code_execute
+    - memory_query
+  synthesizer:
+    - memory_query
+    - file_read
+    - code_execute
+  red_team:
+    - web_search
+    - code_execute
+    - browser_fetch
+    - memory_query
+
+# Sandbox Config
+sandbox:
+  mem_limit: 256m
+  cpu_period: 100000
+  cpu_quota: 50000
+  timeout: 15
+  network: false
+  images:
+    python: python:3.12-slim
+    javascript: node:20-slim
+    bash: bash:5
