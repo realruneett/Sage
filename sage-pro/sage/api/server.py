@@ -1,20 +1,41 @@
+"""
+SAGE-PRO FastAPI Server
+═══════════════════════
+Headless API for the Axiomatic Orthogonal Divergence Engine.
+Bootstraps all agents, tools, and the LangGraph pipeline on startup.
+"""
+
+import os
 import uvicorn
+import yaml
 import structlog
 import uuid
 import time
 import httpx
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 from sage.api.schemas import CodeRequest, ReviewRequest, RefactorRequest, SolveIssueRequest, APIResponse
 from sage.api.streaming import create_streaming_response
+from sage.api.stream_endpoint import router as stream_router
 from sage.core.graph import build_graph
 from sage.core.types import SageRequest
 
-from sage.api.stream_endpoint import router as stream_router
+# Agent imports
+from sage.agents.architect import Architect
+from sage.agents.implementer import Implementer
+from sage.agents.red_team import RedTeam
+from sage.agents.synthesizer import Synthesizer
+from sage.core.routing import CodeTopologyRouter
+
+# Tool imports
+from sage.tools.sandbox import run_in_sandbox, run_command_in_sandbox
+from sage.tools.linter import run_ruff
+from sage.tools.security import run_bandit, run_semgrep
 
 logger = structlog.get_logger(__name__)
 
-app = FastAPI(title="SAGE-PRO Engine API", version="1.0.0")
+app = FastAPI(title="SAGE-PRO Engine API", version="2.0.0")
 
 # Register the streaming SSE endpoint for the Gradio frontend
 app.include_router(stream_router)
@@ -28,6 +49,117 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ─────────────────────────────────────────────────────────────────────
+#  Bootstrap agents & tools at module level
+# ─────────────────────────────────────────────────────────────────────
+
+def _env(key: str, default: str) -> str:
+    return os.environ.get(key, default)
+
+
+def _build_agents() -> dict:
+    """Instantiate all 4 agents + router from environment config."""
+    return {
+        "architect": Architect(
+            base_url=_env("VLLM_HOST_ARCHITECT", "http://localhost:8001/v1"),
+        ),
+        "implementer": Implementer(
+            base_url=_env("VLLM_HOST_IMPLEMENTER", "http://localhost:8002/v1"),
+        ),
+        "synthesizer": Synthesizer(
+            base_url=_env("VLLM_HOST_SYNTHESIZER", "http://localhost:8003/v1"),
+        ),
+        "red_team": RedTeam(
+            base_url=_env("VLLM_HOST_REDTEAM", "http://localhost:8004/v1"),
+        ),
+        "router": CodeTopologyRouter(),
+    }
+
+
+def _build_tools() -> dict:
+    """Build tool callables compatible with the Crucible loop."""
+    import tempfile
+    from pathlib import Path
+
+    async def ruff_tool(code: str):
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write(code)
+            f.flush()
+            return await run_ruff(f.name)
+
+    async def mypy_tool(code: str):
+        """Run mypy via sandbox — returns findings list."""
+        import json as _json
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write(code)
+            f.flush()
+            ret, stdout, stderr = await run_command_in_sandbox(
+                ["python3", "-m", "mypy", "--no-error-summary", "--output", "json", f.name]
+            )
+            try:
+                return _json.loads(stdout) if stdout else []
+            except Exception:
+                return []
+
+    async def bandit_tool(code: str):
+        with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+            f.write(code)
+            f.flush()
+            return await run_bandit(f.name)
+
+    async def sandbox_tool(code: str, tests: str):
+        return await run_in_sandbox(code, tests)
+
+    return {
+        "ruff": ruff_tool,
+        "mypy": mypy_tool,
+        "bandit": bandit_tool,
+        "sandbox": sandbox_tool,
+    }
+
+
+def _load_hyperparams() -> dict:
+    """Load AODE hyperparameters from YAML config."""
+    config_path = "configs/aode_hyperparams.yaml"
+    try:
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        logger.warning("hyperparams_not_found", path=config_path)
+        return {
+            "epsilon": 0.05,
+            "delta": 0.02,
+            "max_cycles": 4,
+            "damage_weights": {
+                "ruff": 0.1, "mypy": 0.2, "bandit": 0.5,
+                "semgrep": 0.4, "tests": 1.0, "complexity": 0.05,
+            },
+        }
+
+
+# Lazy-initialized globals — created on first request
+_agents = None
+_tools = None
+_hyperparams = None
+
+
+def _get_graph():
+    """Returns a compiled graph with live agents and tools."""
+    global _agents, _tools, _hyperparams
+    if _agents is None:
+        _agents = _build_agents()
+        _tools = _build_tools()
+        _hyperparams = _load_hyperparams()
+        logger.info("sage_pipeline_bootstrapped",
+                     agents=list(_agents.keys()),
+                     tools=list(_tools.keys()))
+    return build_graph(_agents, _tools, _hyperparams)
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  HTTP middleware
+# ─────────────────────────────────────────────────────────────────────
 
 @app.middleware("http")
 async def add_request_id_and_logging(request: Request, call_next):
@@ -43,32 +175,37 @@ async def add_request_id_and_logging(request: Request, call_next):
     return response
 
 
+# ─────────────────────────────────────────────────────────────────────
+#  Endpoints
+# ─────────────────────────────────────────────────────────────────────
+
 @app.get("/")
 async def root():
     """SAGE-PRO API root — headless engine, no frontend."""
     return {
         "service": "SAGE-PRO Engine",
-        "version": "1.0.0",
-        "endpoints": ["/v1/code", "/v1/review", "/healthz", "/readyz"],
+        "version": "2.0.0",
+        "aode": True,
+        "endpoints": ["/v1/code", "/v1/sage/stream", "/v1/review", "/healthz", "/readyz"],
     }
 
 
 @app.post("/v1/code", response_model=APIResponse)
 async def generate_code(req: CodeRequest):
     """Generates adversarially-hardened code for a given task."""
-    graph = build_graph()
+    graph = _get_graph()
     sage_req = SageRequest(
         task=req.task,
         context_files=req.context_files,
         max_cycles=req.max_cycles,
-        priority=req.priority
+        priority=req.priority,
     )
 
     try:
         result = await graph.ainvoke({"request": sage_req, "repo_files": []})
         return APIResponse(
             request_id=str(uuid.uuid4()),
-            **result
+            **result,
         )
     except Exception as e:
         logger.error("graph_invocation_failed", error=str(e))

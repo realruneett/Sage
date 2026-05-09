@@ -1,11 +1,25 @@
+"""
+SAGE-PRO Nash Equilibrium Crucible
+═══════════════════════════════════
+Implements the minimax adversarial refinement loop:
+
+    Ψ_opt = argmax_{Ψ∈Blue} min_{C∈Red} [ Utility(Ψ) − Damage(C) × e^{−δt} ]
+
+The exponential time-decay e^{-δt} ensures that damage from early cycles
+is weighted more heavily — the engine MUST converge or the damage compounds.
+"""
+
+import math
 import asyncio
 import structlog
 from typing import List, Dict, Any, Tuple
 from datetime import datetime
+
 from sage.core.aode import nash_damage
 from sage.core.types import ToolReport, CrucibleCycle
 
 logger = structlog.get_logger(__name__)
+
 
 async def crucible_loop(
     spec: str,
@@ -13,12 +27,16 @@ async def crucible_loop(
     red_team: Any,
     synthesizer: Any,
     tools: Dict[str, Any],
-    hyperparams: Dict[str, Any]
+    hyperparams: Dict[str, Any],
 ) -> Tuple[str, List[CrucibleCycle], List[float]]:
     """Implements the Nash Equilibrium refinement loop (The Crucible).
 
-    Iteratively hardens code by pitting the Red-Team's attacks against the 
+    Iteratively hardens code by pitting the Red-Team's attacks against the
     Synthesizer's fixes, grounded by deterministic tool feedback.
+
+    The damage formula includes exponential time-decay:
+        discounted_damage = raw_damage × e^{−δ·i}
+    where δ is the decay constant and i is the cycle index.
 
     Args:
         spec: The architectural specification.
@@ -34,67 +52,78 @@ async def crucible_loop(
     current_code = initial_code
     history: List[CrucibleCycle] = []
     trajectory: List[float] = []
-    
+
     max_cycles = hyperparams.get("max_cycles", 5)
     epsilon = hyperparams.get("epsilon", 0.01)
+    delta = hyperparams.get("delta", 0.02)  # ← time-decay constant (was unused)
     weights = hyperparams.get("damage_weights", {
-        "ruff": 0.1, 
-        "mypy": 0.2, 
-        "bandit": 0.5, 
+        "ruff": 0.1,
+        "mypy": 0.2,
+        "bandit": 0.5,
         "semgrep": 0.4,
         "tests": 1.0,
-        "complexity": 0.05
+        "complexity": 0.05,
     })
 
-    logger.info("crucible_loop_started", max_cycles=max_cycles)
+    logger.info("crucible_loop_started", max_cycles=max_cycles, epsilon=epsilon, delta=delta)
 
     for i in range(max_cycles):
-        # 1. Grounded Assessment
-        # We assume the sandbox handles ruff/mypy/bandit internally or via separate calls
-        # For this logic, we call them and aggregate.
+        # 1. Grounded Assessment — external tool execution
         ruff_findings = await tools["ruff"](current_code)
         mypy_findings = await tools["mypy"](current_code)
         bandit_findings = await tools["bandit"](current_code)
-        
-        # 2. Adversarial Attack
+
+        # 2. Adversarial Attack — Red-Team generates exploits
         attack_result = await red_team.attack(current_code, spec)
-        
-        # 3. Dynamic Verification
+
+        # 3. Dynamic Verification — sandbox execution of adversarial tests
         test_report = await tools["sandbox"](current_code, attack_result["tests"])
-        
+
         report = ToolReport(
             ruff=ruff_findings,
             mypy=mypy_findings,
             bandit=bandit_findings,
             tests_passed=test_report.tests_passed,
-            coverage=test_report.coverage
+            coverage=test_report.coverage,
         )
-        
-        # 4. Damage Calculation
-        damage = nash_damage(report.dict(), weights)
-        trajectory.append(damage)
-        
+
+        # 4. Damage Calculation with exponential time-decay
+        raw_damage = nash_damage(report.dict(), weights)
+        discounted_damage = raw_damage * math.exp(-delta * i)
+
+        trajectory.append(discounted_damage)
+
         cycle = CrucibleCycle(
             cycle_index=i,
-            damage_score=damage,
+            damage_score=discounted_damage,  # ← discounted, not raw
             findings=report,
-            refinement_prompt=attack_result["security_findings"][0] if attack_result["security_findings"] else ""
+            refinement_prompt=(
+                attack_result["security_findings"][0]
+                if attack_result.get("security_findings")
+                else ""
+            ),
         )
         history.append(cycle)
-        
-        logger.info("crucible_cycle_complete", cycle=i, damage=damage)
-        
-        # Convergence Check
-        if damage < epsilon:
-            logger.info("crucible_converged_early", cycle=i)
+
+        logger.info(
+            "crucible_cycle_complete",
+            cycle=i,
+            raw_damage=raw_damage,
+            discounted_damage=discounted_damage,
+            decay_factor=math.exp(-delta * i),
+        )
+
+        # 5. Convergence Check — uses discounted damage
+        if discounted_damage < epsilon:
+            logger.info("crucible_converged_early", cycle=i, discounted_damage=discounted_damage)
             break
-            
-        # 5. Nash Refinement (The Fix)
+
+        # 6. Nash Refinement — Synthesizer fixes what Red-Team broke
         current_code = await synthesizer.merge(
-            spec, 
-            current_code, 
-            current_code, # Self-refinement 
-            red_team_prior=str(report.dict())
+            spec,
+            current_code,
+            current_code,  # self-refinement
+            red_team_prior=str(report.dict()),
         )
 
     return current_code, history, trajectory

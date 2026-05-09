@@ -52,16 +52,16 @@ def _sse_event(event: str, agent: str = "", content: str = "", **meta) -> str:
     })
 
 
-# ── Pipeline runner (streams real agent outputs) ───────────────────────────
+# ── Pipeline runner (streams real agent outputs via the live graph) ────────
 async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGenerator[str, None]:
     """
     Drives the full AODE 4-agent pipeline and yields SSE events.
 
-    This imports the graph lazily so that import-time failures in heavy ML
-    deps don't block the FastAPI server from starting.
+    Uses the same lazy-bootstrapped agents from server.py.
     """
     try:
-        from sage.core.graph import build_graph
+        # Import the lazy bootstrap from server
+        from sage.api.server import _get_graph
         from sage.core.types import SageRequest
     except ImportError as e:
         yield _sse_event("error", content=f"Pipeline import failed: {e}")
@@ -75,18 +75,18 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
     )
 
     try:
-        graph = build_graph()
+        graph = _get_graph()
 
         # Emit boot
-        yield _sse_event("agent_start", agent="SYSTEM", content="Initialising SAGE-PRO council …",
+        yield _sse_event("agent_start", agent="SYSTEM", content="Initialising SAGE-PRO AODE council …",
                          vram_gb=0, nash_cycle=0, divergence=1.0, status="BOOTING")
 
-        # Run the full graph (returns a dict matching SageResponse fields)
+        # Run the full graph
         result = await graph.ainvoke({"request": sage_req, "repo_files": []})
 
         # Extract structured data from result
         final_code = result.get("final_code", "")
-        nash_cycles = result.get("nash_cycles", 0)
+        nash_cycles = len(result.get("cycle_history", []))
         divergence = result.get("divergence_index", 0.0)
         vram_peak = result.get("vram_peak_gb", 0.0)
         xai_trace = result.get("xai_trace", [])
