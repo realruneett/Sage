@@ -55,3 +55,53 @@ agents:
 # VRAM Estimation
 vram_base_gb: 89.0
 vram_per_cycle_gb: 2.5
+
+# SAGE-PRO v2 Architecture Settings
+
+# Penalty System
+penalty:
+  alpha_hard: 0.25
+  alpha_soft: 0.08
+  w_floor: 0.10
+  epsilon_boost: 0.30
+  epsilon_max: 0.90
+  epsilon_decay: 0.97
+
+# CTR & MAQR Engine
+ctr_maqr:
+  q_learning:
+    alpha: 0.15
+    gamma: 0.92
+    epsilon_start: 0.25
+    epsilon_end: 0.04
+  reward_weights:
+    correctness: 0.40
+    security: 0.30
+    efficiency: 0.20
+    novelty: 0.10
+  centroid_drift:
+    high_reward_threshold: 0.75
+    low_reward_threshold: 0.35
+    attract_rate: 0.08
+    repel_rate: 0.04
+  crystallisation_consecutive_steps: 5
+  evaporation:
+    idle_steps_threshold: 500
+    decay_rate: 0.98
+    prune_threshold: 0.01
+
+# Correction Detection
+correction_patterns:
+  - "(that'?s?\\s+(wrong|incorrect|not right|inaccurate|false))"
+  - "(no[,.]\\s*(actually|that'?s|you'?re|you are))"
+  - "(you'?re?\\s+(wrong|incorrect|mistaken|off))"
+  - "(actually[,]?\\s+it'?s?\\s)"
+  - "(the\\s+(correct|right|actual)\\s+(answer|solution|way|code)\\s+is)"
+  - "(that\\s+doesn'?t\\s+(work|compile|run|make sense|execute))"
+  - "(you\\s+made\\s+a\\s+mistake)"
+  - "(please\\s+correct\\s+(that|this|it))"
+  - "(wrong\\s+output)"
+  - "(that\\s+(is|was)\\s+(completely\\s+)?(wrong|broken|incorrect))"
+  - "(fix\\s+your\\s+(answer|response|code|mistake))"
+  - "(try\\s+again[,.]?\\s+(that|it|this)\\s+is\\s+wrong)"
+
