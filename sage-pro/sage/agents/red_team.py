@@ -8,35 +8,39 @@ from sage.agents.base import VLLMAgent
 logger = structlog.get_logger(__name__)
 
 class RedTeam:
-    \"\"\"The Red-Team specialist ensemble.
+    """The Red-Team specialist ensemble.
 
     Uses a dual-model ensemble (DeepSeek-Coder + StarCoder2) to find vulnerabilities, 
     generate adversarial tests, and perform asymptotic analysis.
-    \"\"\"
+    """
 
     def __init__(
         self, 
         base_url: str,
-        prompt_path: str = "sage/prompts/red_team.md"
+        primary_model: str,
+        secondary_model: str,
+        primary_temperature: float,
+        secondary_temperature: float,
+        prompt_path: str,
     ) -> None:
-        \"\"\"Initializes the Red-Team ensemble.\"\"\"
+        """Initializes the Red-Team ensemble."""
         self.primary = VLLMAgent(
             name="RedTeam-Primary",
             base_url=base_url,
-            model_name="DeepSeek-Coder-V2-Lite-Instruct",
-            temperature=0.7, # High entropy for creative attacks
+            model_name=primary_model,
+            temperature=primary_temperature,
             system_prompt_path=prompt_path
         )
         self.secondary = VLLMAgent(
             name="RedTeam-Secondary",
             base_url=base_url,
-            model_name="StarCoder2-15B",
-            temperature=0.5,
+            model_name=secondary_model,
+            temperature=secondary_temperature,
             system_prompt_path=prompt_path
         )
 
     async def attack(self, code: str, spec: str) -> Dict[str, Any]:
-        \"\"\"Performs an adversarial attack on a code proposal.
+        """Performs an adversarial attack on a code proposal.
 
         Args:
             code: The Python code to attack.
@@ -44,10 +48,10 @@ class RedTeam:
 
         Returns:
             A dictionary containing tests, strategies, findings, and analysis.
-        \"\"\"
+        """
         user_msg = (
-            f"Code Proposal:\\n{code}\\n\\n"
-            f"Spec:\\n{spec}\\n\\n"
+            f"Code Proposal:\n{code}\n\n"
+            f"Spec:\n{spec}\n\n"
             f"Find flaws, generate adversarial pytest cases, and provide Big-O analysis."
         )
 
@@ -89,7 +93,7 @@ class RedTeam:
                 continue
 
         return {
-            "tests": "\\n\\n".join(unique_tests),
+            "tests": "\n\n".join(unique_tests),
             "hypothesis_strategy": "st.text()", # Placeholder for strategy extraction
             "security_findings": findings,
             "big_o_analysis": "O(N log N)" # Placeholder for extraction

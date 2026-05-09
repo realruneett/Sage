@@ -39,6 +39,8 @@ class VLLMAgent:
         max_tokens: int = 4096,
         temperature: float = 0.2,
         system_prompt_path: Optional[str] = None,
+        api_timeout_sec: float = 300.0,
+        api_max_retries: int = 3,
     ) -> None:
         """Initializes the VLLMAgent.
 
@@ -55,6 +57,8 @@ class VLLMAgent:
         self.model_name = model_name
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.api_timeout_sec = api_timeout_sec
+        self.api_max_retries = api_max_retries
         self.system_prompt = ""
 
         if system_prompt_path:
@@ -102,17 +106,16 @@ class VLLMAgent:
         if logit_bias:
             payload["logit_bias"] = {str(k): v for k, v in logit_bias.items()}
 
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=self.api_timeout_sec) as client:
             retries = 0
-            max_retries = 3
-            while retries <= max_retries:
+            while retries <= self.api_max_retries:
                 try:
                     start_time = time.time()
                     response = await client.post(
                         f"{self.base_url}/chat/completions", json=payload,
                     )
 
-                    if response.status_code >= 500 and retries < max_retries:
+                    if response.status_code >= 500 and retries < self.api_max_retries:
                         retries += 1
                         wait_time = 2 ** retries
                         logger.warning(
@@ -182,7 +185,7 @@ class VLLMAgent:
         if logit_bias:
             payload["logit_bias"] = {str(k): v for k, v in logit_bias.items()}
 
-        async with httpx.AsyncClient(timeout=300.0) as client:
+        async with httpx.AsyncClient(timeout=self.api_timeout_sec) as client:
             async with client.stream(
                 "POST", f"{self.base_url}/chat/completions", json=payload,
             ) as response:

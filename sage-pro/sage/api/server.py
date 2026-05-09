@@ -61,18 +61,39 @@ def _env(key: str, default: str) -> str:
 def _build_agents(hyperparams: dict) -> dict:
     """Instantiate all 4 agents + router from environment config."""
     vllm_hosts = hyperparams.get("vllm_hosts", {})
+    agent_configs = hyperparams.get("agents", {})
+    
+    arch_cfg = agent_configs.get("architect", {})
+    impl_cfg = agent_configs.get("implementer", {})
+    syn_cfg = agent_configs.get("synthesizer", {})
+    rt_cfg = agent_configs.get("redteam", {})
+
     return {
         "architect": Architect(
             base_url=_env("VLLM_HOST_ARCHITECT", vllm_hosts.get("architect", "http://localhost:8001/v1")),
+            model_name=arch_cfg.get("model_name", "qwen2.5:72b"),
+            prompt_path=arch_cfg.get("prompt_path", "sage/prompts/architect.md"),
+            temperature=arch_cfg.get("temperature", 0.3),
         ),
         "implementer": Implementer(
             base_url=_env("VLLM_HOST_IMPLEMENTER", vllm_hosts.get("implementer", "http://localhost:8002/v1")),
+            model_name=impl_cfg.get("model_name", "qwen2.5-coder:32b"),
+            prompt_path=impl_cfg.get("prompt_path", "sage/prompts/implementer.md"),
+            temperature=impl_cfg.get("temperature", 0.1),
         ),
         "synthesizer": Synthesizer(
             base_url=_env("VLLM_HOST_SYNTHESIZER", vllm_hosts.get("synthesizer", "http://localhost:8003/v1")),
+            model_name=syn_cfg.get("model_name", "deepseek-coder-v2:16b"),
+            prompt_path=syn_cfg.get("prompt_path", "sage/prompts/synthesizer.md"),
+            temperature=syn_cfg.get("temperature", 0.0),
         ),
         "red_team": RedTeam(
             base_url=_env("VLLM_HOST_REDTEAM", vllm_hosts.get("redteam", "http://localhost:8004/v1")),
+            primary_model=rt_cfg.get("primary_model", "starcoder2:15b"),
+            secondary_model=rt_cfg.get("secondary_model", "starcoder2:15b"),
+            primary_temperature=rt_cfg.get("primary_temperature", 0.7),
+            secondary_temperature=rt_cfg.get("secondary_temperature", 0.5),
+            prompt_path=rt_cfg.get("prompt_path", "sage/prompts/red_team.md"),
         ),
         "router": CodeTopologyRouter(
             model_name=hyperparams.get("embedding_model", "BAAI/bge-small-en-v1.5"),
