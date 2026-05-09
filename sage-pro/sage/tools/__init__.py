@@ -1,4 +1,4 @@
-\"\"\"Mechanical grounding tools and secure execution sandbox.\"\"\"
+"""Mechanical grounding tools and secure execution sandbox."""
 
 from sage.tools.sandbox import run_in_sandbox
 from sage.tools.linter import run_ruff

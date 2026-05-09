@@ -7,7 +7,7 @@ from pathlib import Path
 logger = structlog.get_logger(__name__)
 
 def generate_comparison_report():
-    \"\"\"Generates a comparison report and chart between single-agent and SAGE-PRO.\"\"\"
+    """Generates a comparison report and chart between single-agent and SAGE-PRO."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true", help="10 problems only")
     parser.add_argument("--full", action="store_true")
@@ -36,7 +36,7 @@ def generate_comparison_report():
     logger.info("chart_generated", path=str(output_fig))
 
     # 2. Generate Markdown Table
-    table = \"\"\"
+    table = """
 # SAGE-PRO Benchmark Performance
 
 | Configuration | Dataset | Pass@1 (%) | Nash Divergence |
@@ -47,7 +47,7 @@ def generate_comparison_report():
 | SAGE-PRO (Full) | HumanEval+ | 92.8% | 0.082 |
 
 *Benchmarks conducted on AMD MI300X with ROCm 6.2.*
-\"\"\"
+"""
     output_md = Path("docs/BENCHMARKS.md")
     output_md.write_text(table)
     logger.info("markdown_report_generated", path=str(output_md))

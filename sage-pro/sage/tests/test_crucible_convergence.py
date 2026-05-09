@@ -5,7 +5,7 @@ from sage.core.types import ToolReport
 
 @pytest.mark.asyncio
 async def test_crucible_stops_on_epsilon() -> None:
-    \"\"\"Asserts the loop stops when damage is below epsilon.\"\"\"
+    """Asserts the loop stops when damage is below epsilon."""
     red_team = MagicMock()
     red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": []})
     
@@ -28,7 +28,7 @@ async def test_crucible_stops_on_epsilon() -> None:
 
 @pytest.mark.asyncio
 async def test_crucible_stops_on_max_cycles() -> None:
-    \"\"\"Asserts the loop stops after max_cycles even if damage is high.\"\"\"
+    """Asserts the loop stops after max_cycles even if damage is high."""
     red_team = MagicMock()
     red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": ["flaw"]})
     
@@ -51,7 +51,7 @@ async def test_crucible_stops_on_max_cycles() -> None:
 
 @pytest.mark.asyncio
 async def test_crucible_records_full_trajectory() -> None:
-    \"\"\"Asserts the trajectory length matches the cycles run.\"\"\"
+    """Asserts the trajectory length matches the cycles run."""
     red_team = MagicMock()
     red_team.attack = AsyncMock(return_value={"tests": "", "security_findings": []})
     synthesizer = MagicMock()

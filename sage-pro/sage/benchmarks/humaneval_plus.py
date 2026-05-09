@@ -11,7 +11,7 @@ async def run_humaneval_plus(
     limit: Optional[int] = None, 
     use_sage: bool = True
 ) -> List[Dict[str, Any]]:
-    \"\"\"Evaluates SAGE-PRO against the HumanEval+ dataset.
+    """Evaluates SAGE-PRO against the HumanEval+ dataset.
 
     Args:
         limit: Max number of problems to evaluate.
@@ -19,7 +19,7 @@ async def run_humaneval_plus(
 
     Returns:
         List of results for each problem.
-    \"\"\"
+    """
     logger.info("loading_humanevalplus")
     dataset = load_dataset("evalplus/humanevalplus", split="test")
     

@@ -5,7 +5,7 @@ from sage.core.types import ToolReport, SageRequest
 
 @pytest.mark.asyncio
 async def test_end_to_end_humaneval_mocked() -> None:
-    \"\"\"Asserts the full pipeline completes with clean reports using mocked agents.\"\"\"
+    """Asserts the full pipeline completes with clean reports using mocked agents."""
     
     graph = build_graph()
     

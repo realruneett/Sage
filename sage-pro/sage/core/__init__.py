@@ -1,1 +1,1 @@
-\"\"\"Core reasoning operators and AODE engine logic.\"\"\"
+"""Core reasoning operators and AODE engine logic."""

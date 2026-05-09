@@ -7,17 +7,17 @@ from typing import Dict, Any
 logger = structlog.get_logger(__name__)
 
 class ProofOfWorkLogger:
-    \"\"\"Creates a cryptographically linked chain of reasoning steps.
+    """Creates a cryptographically linked chain of reasoning steps.
 
     Each step is hashed and linked to the parent hash, ensuring that the 
     reasoning trajectory has not been tampered with post-inference.
-    \"\"\"
+    """
 
     def __init__(self) -> None:
         self.last_hash = "0" * 64
 
     def commit_step(self, node_name: str, artifact: Any) -> Dict[str, Any]:
-        \"\"\"Hashes an artifact and links it to the chain.
+        """Hashes an artifact and links it to the chain.
 
         Args:
             node_name: The name of the reasoning node (e.g. "synthesize").
@@ -25,7 +25,7 @@ class ProofOfWorkLogger:
 
         Returns:
             A dictionary representing the PoW entry.
-        \"\"\"
+        """
         content_str = str(artifact)
         current_timestamp = time.time()
         

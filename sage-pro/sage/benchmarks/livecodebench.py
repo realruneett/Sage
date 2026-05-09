@@ -8,7 +8,7 @@ from sage.core.graph import build_graph
 logger = structlog.get_logger(__name__)
 
 async def run_livecodebench(limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    \"\"\"Evaluates SAGE-PRO against LiveCodeBench (generation lite).\"\"\"
+    """Evaluates SAGE-PRO against LiveCodeBench (generation lite)."""
     logger.info("loading_livecodebench")
     # Using the generation lite split if available
     try:

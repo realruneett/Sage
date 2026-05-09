@@ -6,14 +6,14 @@ from radon.metrics import mi_visit
 logger = structlog.get_logger(__name__)
 
 def cyclomatic_complexity(code: str) -> Dict[str, Any]:
-    \"\"\"Calculates Cyclomatic Complexity using Radon.
+    """Calculates Cyclomatic Complexity using Radon.
 
     Args:
         code: The Python source code to analyze.
 
     Returns:
         A dictionary containing complexity metrics per block.
-    \"\"\"
+    """
     try:
         results = cc_visit(code)
         blocks = []
@@ -35,14 +35,14 @@ def cyclomatic_complexity(code: str) -> Dict[str, Any]:
         return {"blocks": [], "average_complexity": 0}
 
 def maintainability_index(code: str) -> float:
-    \"\"\"Calculates the Maintainability Index using Radon.
+    """Calculates the Maintainability Index using Radon.
 
     Args:
         code: The Python source code to analyze.
 
     Returns:
         The maintainability index score (0-100).
-    \"\"\"
+    """
     try:
         return float(mi_visit(code, multi=False))
     except Exception as e:

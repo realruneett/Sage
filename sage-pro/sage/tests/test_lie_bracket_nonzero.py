@@ -8,12 +8,12 @@ from sage.core.aode import lie_bracket_divergence
     code_b=st.text(min_size=1, alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters=("\\0",)))
 )
 def test_lie_bracket_divergence_properties(code_a: str, code_b: str) -> None:
-    \"\"\"Property test for Lie Bracket divergence.
+    """Property test for Lie Bracket divergence.
     
     Verifies that:
     1. Divergence is always between [0, 1].
     2. Divergence is 0 if and only if AST is equal.
-    \"\"\"
+    """
     # Filter for valid Python snippets to avoid parse errors in the operator
     try:
         ast.parse(code_a)

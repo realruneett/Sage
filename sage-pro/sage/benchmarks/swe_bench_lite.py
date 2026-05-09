@@ -8,14 +8,14 @@ from sage.core.graph import build_graph
 logger = structlog.get_logger(__name__)
 
 async def run_swe_bench_lite(limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    \"\"\"Evaluates SAGE-PRO against the SWE-bench_Lite dataset.
+    """Evaluates SAGE-PRO against the SWE-bench_Lite dataset.
 
     Args:
         limit: Max number of issues to evaluate.
 
     Returns:
         List of results including generated patches.
-    \"\"\"
+    """
     logger.info("loading_swe_bench_lite")
     dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
     

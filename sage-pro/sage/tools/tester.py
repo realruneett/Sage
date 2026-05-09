@@ -9,7 +9,7 @@ async def run_pytest(
     test_path: str, 
     timeout: int = 30
 ) -> Dict[str, Any]:
-    \"\"\"Runs pytest in the sandbox and returns detailed results.
+    """Runs pytest in the sandbox and returns detailed results.
 
     Args:
         code_path: The filesystem path to the code.
@@ -18,7 +18,7 @@ async def run_pytest(
 
     Returns:
         A dictionary containing {passed, failed, errors, coverage_pct, durations}.
-    \"\"\"
+    """
     with open(code_path, "r") as f:
         code = f.read()
     with open(test_path, "r") as f:

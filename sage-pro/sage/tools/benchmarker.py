@@ -8,7 +8,7 @@ from sage.tools.sandbox import run_command_in_sandbox
 logger = structlog.get_logger(__name__)
 
 async def run_hyperfine(cmd_str: str, runs: int = 5) -> Dict[str, Any]:
-    \"\"\"Invokes Hyperfine benchmarking tool and returns results.
+    """Invokes Hyperfine benchmarking tool and returns results.
 
     Args:
         cmd_str: The shell command to benchmark.
@@ -16,7 +16,7 @@ async def run_hyperfine(cmd_str: str, runs: int = 5) -> Dict[str, Any]:
 
     Returns:
         A dictionary containing benchmarking statistics.
-    \"\"\"
+    """
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
         report_file = f.name
 
@@ -40,14 +40,14 @@ async def run_hyperfine(cmd_str: str, runs: int = 5) -> Dict[str, Any]:
             os.remove(report_file)
 
 async def run_pyperf(script_path: str) -> Dict[str, Any]:
-    \"\"\"Fallback benchmarker using pyperf when hyperfine is unavailable.
+    """Fallback benchmarker using pyperf when hyperfine is unavailable.
 
     Args:
         script_path: The Python script to profile.
 
     Returns:
         A dictionary containing pyperf statistics.
-    \"\"\"
+    """
     with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
         report_file = f.name
 

@@ -6,14 +6,14 @@ from sage.tools.sandbox import run_command_in_sandbox
 logger = structlog.get_logger(__name__)
 
 async def run_bandit(path: str) -> List[Dict[str, Any]]:
-    \"\"\"Invokes Bandit security scanner and returns findings.
+    """Invokes Bandit security scanner and returns findings.
 
     Args:
         path: The filesystem path to scan.
 
     Returns:
         A list of dictionaries containing Bandit findings (HIGH/MEDIUM severity).
-    \"\"\"
+    """
     cmd = ["bandit", "-f", "json", "-r", path]
     
     ret_code, stdout, stderr = await run_command_in_sandbox(cmd)
@@ -38,14 +38,14 @@ async def run_bandit(path: str) -> List[Dict[str, Any]]:
         return []
 
 async def run_semgrep(path: str) -> List[Dict[str, Any]]:
-    \"\"\"Invokes Semgrep static analysis and returns findings.
+    """Invokes Semgrep static analysis and returns findings.
 
     Args:
         path: The filesystem path to analyze.
 
     Returns:
         A list of dictionaries containing Semgrep findings.
-    \"\"\"
+    """
     cmd = ["semgrep", "--config=auto", "--json", path]
     
     ret_code, stdout, stderr = await run_command_in_sandbox(cmd)

@@ -8,7 +8,7 @@ from typing import Dict, List, Any
 logger = structlog.get_logger(__name__)
 
 def persistent_homology_features(embeddings: np.ndarray) -> Dict[str, Any]:
-    \"\"\"Computes topological features of the code embedding space using Persistent Homology.
+    """Computes topological features of the code embedding space using Persistent Homology.
 
     This function builds a Rips complex on the provided embeddings and calculates 
     persistence and Betti numbers to identify structural 'voids' in the solution manifold.
@@ -26,7 +26,7 @@ def persistent_homology_features(embeddings: np.ndarray) -> Dict[str, Any]:
     Examples:
         >>> features = persistent_homology_features(np.random.randn(100, 1024))
         >>> print(features["b1"])
-    \"\"\"
+    """
     try:
         # Construct Rips complex
         rips_complex = gudhi.RipsComplex(points=embeddings, max_edge_distance=0.5)
@@ -54,7 +54,7 @@ def persistent_homology_features(embeddings: np.ndarray) -> Dict[str, Any]:
         return {"b0": 1, "b1": 0, "b2": 0, "voids": []}
 
 def torsion_perpendicular(design_vec: np.ndarray, basis: np.ndarray) -> np.ndarray:
-    \"\"\"Computes a unit vector orthogonal to the design vector within a given basis span.
+    """Computes a unit vector orthogonal to the design vector within a given basis span.
 
     Uses a modified Gram-Schmidt process to find a perpendicular architectural nudge
     (torsion) that forces the model to explore orthogonal solution paths.
@@ -71,7 +71,7 @@ def torsion_perpendicular(design_vec: np.ndarray, basis: np.ndarray) -> np.ndarr
 
     Examples:
         >>> nudge = torsion_perpendicular(np.array([1.0, 0.0]), np.array([[0.0, 1.0]]))
-    \"\"\"
+    """
     if np.all(design_vec == 0):
         raise ValueError("Design vector cannot be zero.")
     
@@ -94,7 +94,7 @@ def torsion_perpendicular(design_vec: np.ndarray, basis: np.ndarray) -> np.ndarr
     return perp / norm
 
 def lie_bracket_divergence(code_abc: str, code_acb: str) -> float:
-    \"\"\"Calculates the non-abelian divergence between two parallel synthesis branches.
+    """Calculates the non-abelian divergence between two parallel synthesis branches.
 
     The divergence is measured by comparing the AST dumps of the two solutions
     using Levenshtein distance, representing the semantic gap [ABC, ACB].
@@ -108,7 +108,7 @@ def lie_bracket_divergence(code_abc: str, code_acb: str) -> float:
 
     Examples:
         >>> div = lie_bracket_divergence("def a(): pass", "def b(): pass")
-    \"\"\"
+    """
     try:
         # Generate AST dump strings
         dump_abc = ast.dump(ast.parse(code_abc))
@@ -125,7 +125,7 @@ def lie_bracket_divergence(code_abc: str, code_acb: str) -> float:
         return 0.5 # Default to high divergence on parse error
 
 def nash_damage(report: Dict[str, Any], weights: Dict[str, float]) -> float:
-    \"\"\"Computes the total 'damage' score for a code proposal in the Nash Crucible.
+    """Computes the total 'damage' score for a code proposal in the Nash Crucible.
 
     The damage is a weighted sum of findings from various tools (lint, type, security, tests).
 
@@ -138,7 +138,7 @@ def nash_damage(report: Dict[str, Any], weights: Dict[str, float]) -> float:
 
     Examples:
         >>> damage = nash_damage({"ruff": [1, 2], "mypy": []}, {"ruff": 0.1, "mypy": 0.5})
-    \"\"\"
+    """
     total = 0.0
     for tool, weight in weights.items():
         findings = report.get(tool, [])

@@ -15,7 +15,7 @@ async def run_command_in_sandbox(
     cwd: Optional[str] = None,
     timeout: int = 30
 ) -> tuple[int, bytes, bytes]:
-    \"\"\"Runs a generic command inside the secure sandbox.
+    """Runs a generic command inside the secure sandbox.
 
     Args:
         cmd: The command and its arguments.
@@ -24,7 +24,7 @@ async def run_command_in_sandbox(
 
     Returns:
         A tuple of (return_code, stdout, stderr).
-    \"\"\"
+    """
     wrapper = []
     if shutil.which("firejail"):
         wrapper = ["firejail", "--quiet", "--net=none", "--private", "--rlimit-as=1G", f"--timeout=00:00:{timeout}"]
@@ -55,7 +55,7 @@ async def run_in_sandbox(
     tests: str, 
     timeout: int = 30
 ) -> ToolReport:
-    \"\"\"Executes code and tests within a secure sandbox environment.\"\"\"
+    """Executes code and tests within a secure sandbox environment."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
         code_file = tmp_path / "solution.py"
