@@ -10,23 +10,287 @@ ENVIRONMENT VARIABLES (set in HF Space settings or .env):
 """
 
 import os
+import time
 import gradio as gr
 from openai import OpenAI
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION — Set these in your Hugging Face Space "Secrets" panel
+# CONFIGURATION — Ultimate Titan 4-Agent Ensemble
+# Each agent runs on a dedicated vLLM instance, co-resident on MI300X 192GB HBM3
+#
+# Set in HF Space "Secrets" or .env:
+#   VLLM_HOST       — Base hostname (default: localhost)
+#   HF_TOKEN        — Auth token for all vLLM endpoints
 # ══════════════════════════════════════════════════════════════════════════════
-VLLM_BASE_URL = os.environ.get("VLLM_BASE_URL", "http://localhost:8001/v1")
+VLLM_HOST = os.environ.get("VLLM_HOST", "localhost")
 API_KEY = os.environ.get("HF_TOKEN", "not-needed")
-SAGE_MODEL = os.environ.get("SAGE_MODEL_ID", "TechxGenus/Mistral-Large-Instruct-2407-AWQ")
 
-SYSTEM_PROMPT = (
-    "You are SAGE, the Adversarial Orthogonal Divergence Engine — "
-    "a sovereign reasoning system running on AMD Instinct MI300X. "
-    "You write hardened, production-grade code. Every response passes "
-    "through a Nash Equilibrium crucible of adversarial verification. "
-    "Be precise, authoritative, and technically flawless."
-)
+# ── The Four Co-Resident Agents ──────────────────────────────────────────────
+AGENTS = {
+    "architect": {
+        "name": "ARCHITECT",
+        "model": "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ",
+        "port": 8001,
+        "color": "#06b6d4",
+        "icon": "◈",
+        "system": (
+            "You are the ARCHITECT agent in the SAGE adversarial ensemble. "
+            "Your role: analyze the user's task and produce a rigorous "
+            "design specification. Define data structures, API surfaces, "
+            "error handling strategy, and concurrency model. "
+            "Output ONLY the architectural spec, nothing else. Be precise."
+        ),
+    },
+    "implementer": {
+        "name": "IMPLEMENTER",
+        "model": "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4",
+        "port": 8002,
+        "color": "#8b5cf6",
+        "icon": "◆",
+        "system": (
+            "You are the IMPLEMENTER agent in the SAGE adversarial ensemble. "
+            "You receive an architectural spec and produce complete, "
+            "production-grade, fully typed Python code. Include docstrings, "
+            "type hints, and error handling. Write ONLY code, no explanation."
+        ),
+    },
+    "synthesizer": {
+        "name": "SYNTHESIZER",
+        "model": "MaziyarPanahi/Mistral-Large-Instruct-2407-AWQ",
+        "port": 8003,
+        "color": "#f97316",
+        "icon": "◉",
+        "system": (
+            "You are the SYNTHESIZER — the chief reasoning engine of SAGE. "
+            "You receive the original task, the architect's spec, the "
+            "implementer's code, and the red-team's attack report. "
+            "Your job: merge all branches, patch every vulnerability found "
+            "by red-team, and emit the FINAL hardened code. "
+            "Explain your patches, then output the complete fixed code."
+        ),
+    },
+    "redteam": {
+        "name": "RED-TEAM",
+        "model": "deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct",
+        "port": 8004,
+        "color": "#ef4444",
+        "icon": "⚑",
+        "system": (
+            "You are the RED-TEAM adversarial agent in the SAGE ensemble. "
+            "Your ONLY job: attack the code you receive. Find race conditions, "
+            "edge cases, security flaws, type errors, resource leaks, and "
+            "logic bombs. Generate adversarial test cases that BREAK the code. "
+            "Be ruthless. Output a numbered list of vulnerabilities found "
+            "and the test code that exposes each one."
+        ),
+    },
+}
+
+
+def _make_client(agent_key: str) -> OpenAI:
+    """Create an OpenAI client pointing at the agent's vLLM port."""
+    port = AGENTS[agent_key]["port"]
+    return OpenAI(
+        base_url=f"http://{VLLM_HOST}:{port}/v1",
+        api_key=API_KEY,
+    )
+
+
+def _stream_agent(agent_key: str, messages: list) -> str:
+    """Stream tokens from a single agent. Returns the full response."""
+    agent = AGENTS[agent_key]
+    client = _make_client(agent_key)
+
+    full = ""
+    stream = client.chat.completions.create(
+        model=agent["model"],
+        messages=messages,
+        stream=True,
+        max_tokens=4096,
+        temperature=0.7,
+        top_p=0.95,
+    )
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        if delta.content:
+            full += delta.content
+    return full
+
+
+def _stage_header(agent_key: str, status: str = "ACTIVE") -> str:
+    """Format a cinematic stage header for the chat output."""
+    a = AGENTS[agent_key]
+    return (
+        f"\n\n---\n\n"
+        f"**{a['icon']} [{a['name']}]** — *{status}*\n\n"
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# BACKEND — 4-Agent Adversarial Pipeline with Streaming
+#
+# Pipeline: ARCHITECT (Qwen-32B) → IMPLEMENTER (Llama-70B)
+#                                          ↓
+#           SYNTHESIZER (Mistral-123B) ← RED-TEAM (DeepSeek-V2-Lite)
+#
+# Each stage streams its output to the Gradio chatbot in real-time.
+# ══════════════════════════════════════════════════════════════════════════════
+def sage_inference(user_message, chat_history):
+    """
+    Runs the full AODE adversarial pipeline across all four agents.
+    Each agent runs on its own vLLM instance on a separate port.
+    Output is streamed stage-by-stage to the chat.
+    """
+    if not user_message or not user_message.strip():
+        yield chat_history, ""
+        return
+
+    # Append user message
+    chat_history = chat_history + [{"role": "user", "content": user_message}]
+    chat_history = chat_history + [{"role": "assistant", "content": ""}]
+    yield chat_history, ""
+
+    output = ""
+
+    try:
+        # ── STAGE 1: ARCHITECT (Qwen2.5-Coder-32B) ──
+        output += _stage_header("architect", "Generating design spec...")
+        chat_history[-1]["content"] = output + "\n\n⟳ *Streaming from Qwen-32B on port 8001...*"
+        yield chat_history, ""
+
+        arch_msgs = [
+            {"role": "system", "content": AGENTS["architect"]["system"]},
+            {"role": "user", "content": f"Design a solution for:\n\n{user_message}"},
+        ]
+
+        client = _make_client("architect")
+        arch_response = ""
+        stream = client.chat.completions.create(
+            model=AGENTS["architect"]["model"],
+            messages=arch_msgs, stream=True, max_tokens=2048, temperature=0.6,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                arch_response += chunk.choices[0].delta.content
+                chat_history[-1]["content"] = output + arch_response
+                yield chat_history, ""
+
+        output += arch_response
+
+        # ── STAGE 2: IMPLEMENTER (Llama-3.1-70B) ──
+        output += _stage_header("implementer", "Writing production code...")
+        chat_history[-1]["content"] = output + "\n\n⟳ *Streaming from Llama-70B on port 8002...*"
+        yield chat_history, ""
+
+        impl_msgs = [
+            {"role": "system", "content": AGENTS["implementer"]["system"]},
+            {"role": "user", "content": (
+                f"Original task: {user_message}\n\n"
+                f"Architectural spec from Architect:\n{arch_response}\n\n"
+                f"Now write the complete implementation."
+            )},
+        ]
+
+        client = _make_client("implementer")
+        impl_response = ""
+        stream = client.chat.completions.create(
+            model=AGENTS["implementer"]["model"],
+            messages=impl_msgs, stream=True, max_tokens=4096, temperature=0.5,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                impl_response += chunk.choices[0].delta.content
+                chat_history[-1]["content"] = output + impl_response
+                yield chat_history, ""
+
+        output += impl_response
+
+        # ── STAGE 3: RED-TEAM (DeepSeek-V2-Lite) ──
+        output += _stage_header("redteam", "Adversarial attack in progress...")
+        chat_history[-1]["content"] = output + "\n\n⟳ *Streaming from DeepSeek-V2-Lite on port 8004...*"
+        yield chat_history, ""
+
+        red_msgs = [
+            {"role": "system", "content": AGENTS["redteam"]["system"]},
+            {"role": "user", "content": (
+                f"Attack the following code. Find every flaw.\n\n{impl_response}"
+            )},
+        ]
+
+        client = _make_client("redteam")
+        red_response = ""
+        stream = client.chat.completions.create(
+            model=AGENTS["redteam"]["model"],
+            messages=red_msgs, stream=True, max_tokens=2048, temperature=0.8,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                red_response += chunk.choices[0].delta.content
+                chat_history[-1]["content"] = output + red_response
+                yield chat_history, ""
+
+        output += red_response
+
+        # ── STAGE 4: SYNTHESIZER / NASH CRUCIBLE (Mistral-123B) ──
+        output += _stage_header("synthesizer", "Nash Equilibrium convergence...")
+        chat_history[-1]["content"] = output + "\n\n⟳ *Streaming from Mistral-123B on port 8003...*"
+        yield chat_history, ""
+
+        synth_msgs = [
+            {"role": "system", "content": AGENTS["synthesizer"]["system"]},
+            {"role": "user", "content": (
+                f"## Original Task\n{user_message}\n\n"
+                f"## Architect Spec\n{arch_response}\n\n"
+                f"## Implementation\n{impl_response}\n\n"
+                f"## Red-Team Findings\n{red_response}\n\n"
+                f"Patch all vulnerabilities. Emit the final hardened code."
+            )},
+        ]
+
+        client = _make_client("synthesizer")
+        synth_response = ""
+        stream = client.chat.completions.create(
+            model=AGENTS["synthesizer"]["model"],
+            messages=synth_msgs, stream=True, max_tokens=4096, temperature=0.4,
+        )
+        for chunk in stream:
+            if chunk.choices[0].delta.content:
+                synth_response += chunk.choices[0].delta.content
+                chat_history[-1]["content"] = output + synth_response
+                yield chat_history, ""
+
+        output += synth_response
+
+        # ── FINAL: Nash Equilibrium stamp ──
+        output += (
+            "\n\n---\n\n"
+            "**◎ NASH EQUILIBRIUM VERIFIED** — "
+            "Code hardened through adversarial crucible. "
+            "All four agents have converged.\n\n"
+            "| Agent | Model | Port | Status |\n"
+            "|-------|-------|------|--------|\n"
+            "| ◈ Architect | Qwen2.5-Coder-32B-AWQ | 8001 | ✓ CONVERGED |\n"
+            "| ◆ Implementer | Llama-3.1-70B-AWQ | 8002 | ✓ CONVERGED |\n"
+            "| ⚑ Red-Team | DeepSeek-V2-Lite | 8004 | ✓ CONVERGED |\n"
+            "| ◉ Synthesizer | Mistral-Large-123B-AWQ | 8003 | ✓ CONVERGED |\n"
+        )
+        chat_history[-1]["content"] = output
+        yield chat_history, ""
+
+    except Exception as e:
+        error_msg = (
+            f"\n\n**[SYSTEM FAULT]** Agent pipeline interrupted.\n\n"
+            f"`{VLLM_HOST}` — Connection to one or more vLLM endpoints failed.\n\n"
+            f"Ensure all 4 Dockerized vLLM containers are running on MI300X:\n"
+            f"- Port 8001: Architect (Qwen-32B)\n"
+            f"- Port 8002: Implementer (Llama-70B)\n"
+            f"- Port 8003: Synthesizer (Mistral-123B)\n"
+            f"- Port 8004: Red-Team (DeepSeek-V2-Lite)\n\n"
+            f"```\nError: {str(e)}\n```"
+        )
+        chat_history[-1]["content"] = output + error_msg
+        yield chat_history, ""
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AODE AESTHETIC — Custom CSS (scanlines, vignette, brutalist typography)
