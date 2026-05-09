@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROJECT SAGE × AODE — AMD AI Empire</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;width:100vw;height:100vh;font-family:'Georgia',serif}
+#c{display:block;width:100vw;height:100vh}
+#overlay{position:fixed;inset:0;pointer-events:none;z-index:10}
+.label{position:absolute;opacity:0;transform:translateY(8px);transition:opacity 1.4s ease,transform 1.4s ease;text-align:center;pointer-events:none}
+.label.show{opacity:1;transform:translateY(0)}
+.label-title{font-size:13px;letter-spacing:4px;text-transform:uppercase;color:#e8d5a3;font-weight:400;text-shadow:0 0 20px rgba(204,0,0,0.8),0 0 40px rgba(204,0,0,0.4);margin-bottom:4px}
+.label-sub{font-size:9px;letter-spacing:3px;color:#888;text-transform:uppercase}
+.label-line{width:1px;height:24px;background:linear-gradient(to bottom,#CC0000,transparent);margin:6px auto 0}
+#vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%);pointer-events:none;z-index:5}
+#scanlines{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:6;opacity:0.5}
+#title-card{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;opacity:0;pointer-events:none;transition:opacity 2s ease}
+#title-card.show{opacity:1}
+#title-card .main{font-size:clamp(28px,5vw,64px);letter-spacing:10px;color:#fff;text-transform:uppercase;text-shadow:0 0 40px rgba(204,0,0,0.9),0 0 80px rgba(204,0,0,0.4);margin-bottom:12px}
+#title-card .sub{font-size:clamp(10px,1.5vw,16px);letter-spacing:6px;color:#CC0000;text-transform:uppercase;margin-bottom:8px}
+#title-card .desc{font-size:clamp(9px,1vw,12px);letter-spacing:4px;color:#555;text-transform:uppercase;margin-top:20px}
+#title-card .line{width:200px;height:1px;background:linear-gradient(to right,transparent,#CC0000,transparent);margin:16px auto}
+#loading{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity 1s ease}
+#loading.done{opacity:0;pointer-events:none}
+#loading span{color:#CC0000;letter-spacing:6px;font-size:12px;text-transform:uppercase;animation:pulse 1s ease infinite}
+@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
+#skip{position:fixed;bottom:24px;right:24px;z-index:50;color:#444;font-size:10px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;pointer-events:all;transition:color 0.3s}
+#skip:hover{color:#CC0000}
+</style>
+</head>
+<body>
+<div id="loading"><span>INITIALIZING AMD AI EMPIRE...</span></div>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="scanlines"></div>
+<div id="overlay"></div>
+<div id="title-card">
+  <div class="main">PROJECT SAGE × AODE</div>
+  <div class="line"></div>
+  <div class="sub">AMD Instinct MI300X · 192 GB HBM3</div>
+  <div class="desc">The First Reasoning System That Only Runs On AMD</div>
+</div>
+<div id="skip">SKIP INTRO</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+
+const W=window.innerWidth,H=window.innerHeight;
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+renderer.setSize(W,H);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=0.8;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x000000);
+scene.fog=new THREE.FogExp2(0x000000,0.012);
+
+const camera=new THREE.PerspectiveCamera(60,W/H,0.1,500);
+camera.position.set(0,80,60);
+camera.lookAt(0,0,0);
+
+// ── LIGHTING ──────────────────────────────────────────────────────────────
+const ambient=new THREE.AmbientLight(0x111111,1);
+scene.add(ambient);
+
+const redSun=new THREE.DirectionalLight(0xCC2200,2);
+redSun.position.set(-30,60,20);
+redSun.castShadow=true;
+scene.add(redSun);
+
+const warmFill=new THREE.DirectionalLight(0xffd080,0.4);
+warmFill.position.set(30,20,-40);
+scene.add(warmFill);
+
+// ── GROUND PLANE ──────────────────────────────────────────────────────────
+const groundGeo=new THREE.PlaneGeometry(400,400,80,80);
+const groundPos=groundGeo.attributes.position;
+for(let i=0;i<groundPos.count;i++){
+  const x=groundPos.getX(i),z=groundPos.getY(i);
+  const noise=Math.sin(x*0.15)*Math.cos(z*0.12)*0.8+Math.sin(x*0.3+z*0.2)*0.3;
+  groundPos.setZ(i,noise);
+}
+groundGeo.computeVertexNormals();
+const groundMat=new THREE.MeshStandardMaterial({color:0x0a0a0a,metalness:0.9,roughness:0.4,wireframe:false});
+const ground=new THREE.Mesh(groundGeo,groundMat);
+ground.rotation.x=-Math.PI/2;
+ground.receiveShadow=true;
+scene.add(ground);
+
+// ── CIRCUIT GRID ──────────────────────────────────────────────────────────
+const gridHelper=new THREE.GridHelper(400,80,0x1a0000,0x0d0000);
+scene.add(gridHelper);
+
+// ── UTILITIES ─────────────────────────────────────────────────────────────
+function makeGlow(color,intensity){
+  return new THREE.PointLight(color,intensity,12);
+}
+function lerp(a,b,t){return a+(b-a)*t}
+function easeInOut(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+function easeOut(t){return 1-Math.pow(1-t,3)}
+
+// ── DISTRICT DATA ─────────────────────────────────────────────────────────
+const districts=[
+  {name:'AGENT ORCHESTRATION SYSTEM',sub:'LANGGRAPH · CREWAI · AUTOGEN',x:-25,z:-20,color:0xCC0000},
+  {name:'NASH CONVERGENCE ENGINE',sub:'MINIMAX · ADVERSARIAL REFINEMENT',x:25,z:-15,color:0xFF3300},
+  {name:'TOPOLOGICAL ROUTING LAYER',sub:'PERSISTENT HOMOLOGY · β₁ β₂',x:0,z:20,color:0xDD1100},
+  {name:'MI300X MEMORY FABRIC',sub:'192 GB HBM3 · CO-RESIDENT',x:-30,z:15,color:0xFF2200},
+  {name:'THE ADVERSARIAL CORE',sub:'RED-TEAM · TORSION · LIE BRACKET',x:28,z:18,color:0xCC0000},
+];
+
+// ── TOWER BUILDER ─────────────────────────────────────────────────────────
+function buildDistrict(d){
+  const group=new THREE.Group();
+  group.position.set(d.x,0,d.z);
+  d.group=group;
+  d.targetY=1;
+  group.scale.y=0.001;
+
+  // Base platform
+  const baseGeo=new THREE.CylinderGeometry(4,5,0.4,8);
+  const baseMat=new THREE.MeshStandardMaterial({color:0x1a0800,metalness:0.95,roughness:0.2,emissive:d.color,emissiveIntensity:0.05});
+  const base=new THREE.Mesh(baseGeo,baseMat);
+  base.position.y=0.2;
+  base.castShadow=true;
+  group.add(base);
+
+  // Central tower
+  const tH=6+Math.random()*6;
+  const towerGeo=new THREE.CylinderGeometry(0.6,1.2,tH,8);
+  const towerMat=new THREE.MeshStandardMaterial({color:0x1a0000,metalness:1,roughness:0.1,emissive:d.color,emissiveIntensity:0.12});
+  const tower=new THREE.Mesh(towerGeo,towerMat);
+  tower.position.y=tH/2+0.4;
+  tower.castShadow=true;
+  group.add(tower);
+  d.tower=tower;d.tH=tH;
+
+  // Crown ring
+  const ringGeo=new THREE.TorusGeometry(1.8,0.12,8,32);
+  const ringMat=new THREE.MeshStandardMaterial({color:d.color,metalness:1,roughness:0,emissive:d.color,emissiveIntensity:1});
+  const ring=new THREE.Mesh(ringGeo,ringMat);
+  ring.position.y=tH+0.8;
+  ring.rotation.x=Math.PI/2;
+  group.add(ring);
+  d.ring=ring;
+
+  // Outer spires
+  for(let i=0;i<6;i++){
+    const a=(i/6)*Math.PI*2;
+    const sH=2+Math.random()*3;
+    const spireGeo=new THREE.ConeGeometry(0.25,sH,6);
+    const spireMat=new THREE.MeshStandardMaterial({color:0x220000,metalness:1,roughness:0.2,emissive:d.color,emissiveIntensity:0.3});
+    const spire=new THREE.Mesh(spireGeo,spireMat);
+    spire.position.set(Math.cos(a)*3.2,sH/2+0.4,Math.sin(a)*3.2);
+    group.add(spire);
+  }
+
+  // Glow light
+  const glow=makeGlow(d.color,3);
+  glow.position.y=tH+1;
+  group.add(glow);
+  d.glow=glow;
+
+  // Rotating gear rings
+  for(let r=0;r<2;r++){
+    const gr=new THREE.TorusGeometry(2+r*1.5,0.06,4,32);
+    const gm=new THREE.MeshStandardMaterial({color:d.color,emissive:d.color,emissiveIntensity:0.5,metalness:1,roughness:0});
+    const gear=new THREE.Mesh(gr,gm);
+    gear.position.y=1.5+r*2;
+    gear.rotation.x=Math.PI/2+(r*0.4);
+    group.add(gear);
+    d['gear'+r]=gear;d['gearDir'+r]=(r%2===0?1:-1);
+  }
+
+  scene.add(group);
+  return group;
+}
+
+districts.forEach(d=>buildDistrict(d));
+
+// ── DATA PATHWAY CONNECTIONS ──────────────────────────────────────────────
+const connections=[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[1,3]];
+const pathLines=[];
+
+function buildPath(dA,dB){
+  const pts=[];
+  const steps=32;
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    const x=lerp(dA.x,dB.x,t);
+    const z=lerp(dA.z,dB.z,t);
+    const y=0.3+Math.sin(t*Math.PI)*3;
+    pts.push(new THREE.Vector3(x,y,z));
+  }
+  const curve=new THREE.CatmullRomCurve3(pts);
+  const geo=new THREE.TubeGeometry(curve,64,0.04,4,false);
+  const mat=new THREE.MeshStandardMaterial({color:0xCC0000,emissive:0xCC0000,emissiveIntensity:0.8,metalness:1,roughness:0,transparent:true,opacity:0});
+  const mesh=new THREE.Mesh(geo,mat);
+  scene.add(mesh);
+  pathLines.push({mesh,mat,dA,dB});
+  return mesh;
+}
+
+connections.forEach(([a,b])=>buildPath(districts[a],districts[b]));
+
+// ── PARTICLE FIELD ────────────────────────────────────────────────────────
+const pCount=1200;
+const pGeo=new THREE.BufferGeometry();
+const pPos=new Float32Array(pCount*3);
+const pVel=new Float32Array(pCount*3);
+for(let i=0;i<pCount;i++){
+  pPos[i*3]=(Math.random()-0.5)*160;
+  pPos[i*3+1]=Math.random()*40+0.5;
+  pPos[i*3+2]=(Math.random()-0.5)*160;
+  pVel[i*3]=(Math.random()-0.5)*0.02;
+  pVel[i*3+1]=(Math.random()-0.5)*0.005;
+  pVel[i*3+2]=(Math.random()-0.5)*0.02;
+}
+pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pMat=new THREE.PointsMaterial({color:0xFF2200,size:0.15,transparent:true,opacity:0.6,sizeAttenuation:true});
+const particles=new THREE.Points(pGeo,pMat);
+scene.add(particles);
+
+// ── STARFIELD ────────────────────────────────────────────────────────────
+const sGeo=new THREE.BufferGeometry();
+const sPos=new Float32Array(3000*3);
+for(let i=0;i<3000;i++){
+  const phi=Math.acos(2*Math.random()-1);
+  const theta=Math.random()*Math.PI*2;
+  const r=200+Math.random()*100;
+  sPos[i*3]=r*Math.sin(phi)*Math.cos(theta);
+  sPos[i*3+1]=r*Math.sin(phi)*Math.sin(theta);
+  sPos[i*3+2]=r*Math.cos(phi);
+}
+sGeo.setAttribute('position',new THREE.BufferAttribute(sPos,3));
+const sMat=new THREE.PointsMaterial({color:0xffffff,size:0.3,transparent:true,opacity:0.4});
+scene.add(new THREE.Points(sGeo,sMat));
+
+// ── CAMERA PATH ───────────────────────────────────────────────────────────
+const camWaypoints=[
+  {pos:[0,90,0],look:[0,0,0],t:0},
+  {pos:[0,55,30],look:[0,8,0],t:0.07},
+  {pos:[-20,18,5],look:[-25,8,-20],t:0.18},
+  {pos:[-10,12,-15],look:[-25,8,-20],t:0.26},
+  {pos:[10,16,-10],look:[25,8,-15],t:0.36},
+  {pos:[30,12,-5],look:[25,8,-15],t:0.44},
+  {pos:[20,14,8],look:[0,6,20],t:0.54},
+  {pos:[5,10,30],look:[0,6,20],t:0.62},
+  {pos:[-18,12,22],look:[-30,8,15],t:0.70},
+  {pos:[-25,10,5],look:[-30,8,15],t:0.78},
+  {pos:[15,10,24],look:[28,8,18],t:0.86},
+  {pos:[20,20,40],look:[0,5,0],t:0.93},
+  {pos:[0,60,50],look:[0,0,0],t:1.0},
+];
+
+function getCamAt(progress){
+  let a=0,b=1;
+  for(let i=0;i<camWaypoints.length-1;i++){
+    if(progress>=camWaypoints[i].t&&progress<=camWaypoints[i+1].t){a=i;b=i+1;break;}
+  }
+  const wA=camWaypoints[a],wB=camWaypoints[b];
+  const span=wB.t-wA.t;
+  const local=span>0?(progress-wA.t)/span:0;
+  const e=easeInOut(Math.max(0,Math.min(1,local)));
+  return{
+    px:lerp(wA.pos[0],wB.pos[0],e),py:lerp(wA.pos[1],wB.pos[1],e),pz:lerp(wA.pos[2],wB.pos[2],e),
+    lx:lerp(wA.look[0],wB.look[0],e),ly:lerp(wA.look[1],wB.look[1],e),lz:lerp(wA.look[2],wB.look[2],e)
+  };
+}
+
+// ── HTML LABELS ───────────────────────────────────────────────────────────
+const overlay=document.getElementById('overlay');
+const labelEls=[];
+
+function project3D(pos){
+  const v=pos.clone().project(camera);
+  return{x:(v.x*0.5+0.5)*window.innerWidth,y:(-v.y*0.5+0.5)*window.innerHeight,visible:v.z<1};
+}
+
+districts.forEach((d,i)=>{
+  const el=document.createElement('div');
+  el.className='label';
+  el.innerHTML=`<div class="label-title">${d.name}</div><div class="label-sub">${d.sub}</div><div class="label-line"></div>`;
+  overlay.appendChild(el);
+  labelEls.push({el,d,showFrom:0.15+i*0.13,hideAt:0.95});
+});
+
+// ── SEQUENCE CONTROLLER ───────────────────────────────────────────────────
+let progress=0;
+const DURATION=38000; // ms
+let startTime=null;
+let titleShown=false;
+let pathsShown=false;
+let loading=true;
+
+// District activation timing
+const districtActivation=[0.08,0.22,0.38,0.52,0.66];
+
+setTimeout(()=>{
+  document.getElementById('loading').classList.add('done');
+  loading=false;
+  startTime=performance.now();
+},800);
+
+// ── ANIMATION LOOP ────────────────────────────────────────────────────────
+let prevTime=0;
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt=(now-prevTime)*0.001;
+  prevTime=now;
+
+  if(loading){renderer.render(scene,camera);return;}
+  if(!startTime)startTime=now;
+
+  const elapsed=now-startTime;
+  progress=Math.min(elapsed/DURATION,1);
+
+  // Camera movement
+  const cp=getCamAt(progress);
+  camera.position.set(cp.px,cp.py,cp.pz);
+  camera.lookAt(cp.lx,cp.ly,cp.lz);
+
+  // Activate districts as camera approaches
+  districts.forEach((d,i)=>{
+    const threshold=districtActivation[i];
+    if(progress>=threshold){
+      const localP=Math.min((progress-threshold)/0.08,1);
+      d.group.scale.y=easeOut(localP);
+      if(d.ring) d.ring.rotation.z+=dt*0.8*(i%2===0?1:-1);
+      if(d.gear0) d.gear0.rotation.z+=dt*0.5*d.gearDir0;
+      if(d.gear1) d.gear1.rotation.z+=dt*0.35*d.gearDir1;
+      if(d.glow) d.glow.intensity=2+Math.sin(now*0.003+i)*0.8;
+    }
+  });
+
+  // Activate paths
+  if(progress>0.2&&!pathsShown){
+    pathsShown=true;
+    pathLines.forEach((p,i)=>{
+      setTimeout(()=>{
+        let t=0;
+        const id=setInterval(()=>{
+          t+=0.03;
+          p.mat.opacity=Math.min(t,0.7);
+          if(t>=1)clearInterval(id);
+        },30);
+      },i*400);
+    });
+  }
+
+  // Show/hide labels
+  labelEls.forEach(({el,d,showFrom,hideAt})=>{
+    if(progress>=showFrom&&progress<hideAt){
+      const wPos=new THREE.Vector3(d.x,d.tH?d.tH+2:4,d.z);
+      const sp=project3D(wPos);
+      if(sp.visible){
+        el.style.left=sp.x+'px';
+        el.style.top=sp.y+'px';
+        el.style.transform='translateX(-50%) translateY(-100%)';
+        el.classList.add('show');
+      }
+    }else{
+      el.classList.remove('show');
+    }
+  });
+
+  // Final title card
+  if(progress>0.92&&!titleShown){
+    titleShown=true;
+    document.getElementById('title-card').classList.add('show');
+  }
+
+  // Particles drift
+  const pPositions=particles.geometry.attributes.position.array;
+  for(let i=0;i<pCount;i++){
+    pPositions[i*3]+=pVel[i*3];
+    pPositions[i*3+1]+=pVel[i*3+1];
+    pPositions[i*3+2]+=pVel[i*3+2];
+    if(pPositions[i*3+1]<0.3)pVel[i*3+1]=Math.abs(pVel[i*3+1]);
+    if(pPositions[i*3+1]>40)pVel[i*3+1]=-Math.abs(pVel[i*3+1]);
+    if(Math.abs(pPositions[i*3])>80){pPos[i*3]=0;pVel[i*3]*=-1;}
+    if(Math.abs(pPositions[i*3+2])>80){pPos[i*3+2]=0;pVel[i*3+2]*=-1;}
+  }
+  particles.geometry.attributes.position.needsUpdate=true;
+
+  // Path energy pulse along connections
+  pathLines.forEach((p,i)=>{
+    p.mat.emissiveIntensity=0.5+0.5*Math.sin(now*0.002+i*1.1);
+  });
+
+  renderer.render(scene,camera);
+  // Signal the parent Gradio app when the sequence completes
+  if(progress>=0.96 && !window.__sageSentExit){
+    window.__sageSentExit=true;
+    setTimeout(()=>{ window.parent.postMessage('sage-enter-system','*'); },3500);
+  }
+  if(progress>=1){
+    progress=0;startTime=now;titleShown=false;pathsShown=false;
+    pathLines.forEach(p=>p.mat.opacity=0);
+    districts.forEach(d=>{d.group.scale.y=0.001;});
+    document.getElementById('title-card').classList.remove('show');
+  }
+}
+requestAnimationFrame(animate);
+
+// ── RESIZE ────────────────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  const W2=window.innerWidth,H2=window.innerHeight;
+  camera.aspect=W2/H2;camera.updateProjectionMatrix();
+  renderer.setSize(W2,H2);
+});
+
+// ── SKIP — notify parent Gradio frame to transition ─────────────────────
+document.getElementById('skip').addEventListener('click',()=>{
+  window.parent.postMessage('sage-enter-system','*');
+  if(startTime) startTime=performance.now()-DURATION*0.92;
+});
+
+})();
+</script>
+</body>
+</html>
