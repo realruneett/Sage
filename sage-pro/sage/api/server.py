@@ -210,6 +210,7 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
     from sage.core.execution_trace_embedder import ExecutionTraceEmbedder
     from sage.core.adversarial_perturber import AdversarialLatentPerturber
     from sage.core.ast_diff_reward import ASTDiffRewardCrystallizer
+    from sage.core.skill_distiller import SkillDistiller
 
     subsystems = {
         "ctr_engine": CTREngine(hyperparams),
@@ -223,6 +224,7 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
         "execution_trace_embedder": ExecutionTraceEmbedder(hyperparams),
         "adversarial_perturber": AdversarialLatentPerturber(hyperparams),
         "ast_diff_reward": ASTDiffRewardCrystallizer(hyperparams),
+        "skill_distiller": SkillDistiller(hyperparams),
     }
 
     # Mistake Library requires ChromaDB — only init if CHROMA_PATH is set

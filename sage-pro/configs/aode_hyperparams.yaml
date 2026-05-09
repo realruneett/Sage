@@ -229,3 +229,9 @@ ast_reward:
   w_type_change: 0.20
   w_signature_stability: 0.15
   w_control_flow: 0.15
+
+# Novel System 5: Skill-Conditioned Self-Distillation
+skill_distillation:
+  reward_threshold: 0.85
+  collection_name: golden_skills
+  top_k: 2
