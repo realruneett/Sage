@@ -16,6 +16,7 @@ class Synthesizer(VLLMAgent):
         model_name: str,
         prompt_path: str,
         temperature: float,
+        udrk_prompt: str = "",
     ) -> None:
         """Initializes the Synthesizer with specialized parameters for MI300X."""
         super().__init__(
@@ -23,7 +24,8 @@ class Synthesizer(VLLMAgent):
             base_url=base_url,
             model_name=model_name,
             temperature=temperature,
-            system_prompt_path=prompt_path
+            system_prompt_path=prompt_path,
+            udrk_prompt=udrk_prompt,
         )
 
     async def merge(

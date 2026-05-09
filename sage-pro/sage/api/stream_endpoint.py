@@ -61,14 +61,28 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
     """
     try:
         # Import the lazy bootstrap from server
-        from sage.api.server import _get_graph
+        from sage.api.server import _get_graph, _get_v2_subsystems
         from sage.core.types import SageRequest
     except ImportError as e:
         yield _sse_event("error", content=f"Pipeline import failed: {e}")
         return
 
+    # ── v2: Retrieve past mistakes and inject as hidden context ──
+    enriched_query = query
+    try:
+        subsystems = _get_v2_subsystems()
+        ml = subsystems.get("mistake_library")
+        if ml is not None:
+            from sage.core.udrk_kernel import build_mistake_context
+            mistakes = ml.retrieve(query_text=query)
+            ctx = build_mistake_context(mistakes)
+            if ctx:
+                enriched_query = f"{ctx}\n\n---\n\n{query}"
+    except Exception:
+        pass  # Graceful degradation — proceed without mistake context
+
     sage_req = SageRequest(
-        task=query,
+        task=enriched_query,
         context_files=[],
         max_cycles=max_cycles,
         priority=priority,

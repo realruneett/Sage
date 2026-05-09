@@ -18,6 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sage.api.schemas import CodeRequest, ReviewRequest, RefactorRequest, SolveIssueRequest, APIResponse
 from sage.api.streaming import create_streaming_response
 from sage.api.stream_endpoint import router as stream_router
+from sage.api.auth_routes import router as auth_router
+from sage.api.chat_routes import router as chat_router
 from sage.core.graph import build_graph
 from sage.core.types import SageRequest
 
@@ -37,8 +39,10 @@ logger = structlog.get_logger(__name__)
 
 app = FastAPI(title="SAGE-PRO Engine API", version="2.0.0")
 
-# Register the streaming SSE endpoint for the Gradio frontend
+# Register routers
 app.include_router(stream_router)
+app.include_router(auth_router)
+app.include_router(chat_router)
 
 # CORS Configuration
 app.add_middleware(
@@ -60,6 +64,8 @@ def _env(key: str, default: str) -> str:
 
 def _build_agents(hyperparams: dict) -> dict:
     """Instantiate all 4 agents + router from environment config."""
+    from sage.core.udrk_kernel import build_udrk_system_prompt
+    
     vllm_hosts = hyperparams.get("vllm_hosts", {})
     agent_configs = hyperparams.get("agents", {})
     
@@ -74,18 +80,21 @@ def _build_agents(hyperparams: dict) -> dict:
             model_name=arch_cfg.get("model_name", "qwen2.5:72b"),
             prompt_path=arch_cfg.get("prompt_path", "sage/prompts/architect.md"),
             temperature=arch_cfg.get("temperature", 0.3),
+            udrk_prompt=build_udrk_system_prompt("architect", hyperparams),
         ),
         "implementer": Implementer(
             base_url=_env("VLLM_HOST_IMPLEMENTER", vllm_hosts.get("implementer", "http://localhost:8002/v1")),
             model_name=impl_cfg.get("model_name", "qwen2.5-coder:32b"),
             prompt_path=impl_cfg.get("prompt_path", "sage/prompts/implementer.md"),
             temperature=impl_cfg.get("temperature", 0.1),
+            udrk_prompt=build_udrk_system_prompt("implementer", hyperparams),
         ),
         "synthesizer": Synthesizer(
             base_url=_env("VLLM_HOST_SYNTHESIZER", vllm_hosts.get("synthesizer", "http://localhost:8003/v1")),
             model_name=syn_cfg.get("model_name", "deepseek-coder-v2:16b"),
             prompt_path=syn_cfg.get("prompt_path", "sage/prompts/synthesizer.md"),
             temperature=syn_cfg.get("temperature", 0.0),
+            udrk_prompt=build_udrk_system_prompt("synthesizer", hyperparams),
         ),
         "red_team": RedTeam(
             base_url=_env("VLLM_HOST_REDTEAM", vllm_hosts.get("redteam", "http://localhost:8004/v1")),
@@ -94,6 +103,7 @@ def _build_agents(hyperparams: dict) -> dict:
             primary_temperature=rt_cfg.get("primary_temperature", 0.7),
             secondary_temperature=rt_cfg.get("secondary_temperature", 0.5),
             prompt_path=rt_cfg.get("prompt_path", "sage/prompts/red_team.md"),
+            udrk_prompt=build_udrk_system_prompt("red_team", hyperparams),
         ),
         "router": CodeTopologyRouter(
             model_name=hyperparams.get("embedding_model", "BAAI/bge-small-en-v1.5"),
@@ -181,19 +191,71 @@ _agents = None
 _tools = None
 _hyperparams = None
 _torsion_penalties = None
+_v2_subsystems = None
+
+
+def _bootstrap_v2(hyperparams: dict) -> dict:
+    """Bootstraps all SAGE-PRO v2 subsystems from config."""
+    from sage.core.ctr_engine import CTREngine
+    from sage.core.manifold_mutator import ManifoldMutator
+    from sage.core.agent_penalty_system import AgentPenaltySystem
+    from sage.core.correction_detector import CorrectionDetector
+    from sage.core.reward_crystallizer import RewardCrystallizer
+    from sage.core.routing_ledger import RoutingLedger
+
+    subsystems = {
+        "ctr_engine": CTREngine(hyperparams),
+        "manifold_mutator": ManifoldMutator(hyperparams),
+        "penalty_system": AgentPenaltySystem(hyperparams),
+        "correction_detector": CorrectionDetector(hyperparams),
+        "reward_crystallizer": RewardCrystallizer(hyperparams),
+        "routing_ledger": RoutingLedger(),
+    }
+
+    # Mistake Library requires ChromaDB — only init if CHROMA_PATH is set
+    chroma_path = os.environ.get("CHROMA_PATH", "data/chroma")
+    ml_cfg = hyperparams.get("mistake_library", {})
+    try:
+        from sage.memory.mistake_library import MistakeLibrary
+        subsystems["mistake_library"] = MistakeLibrary(
+            chroma_path=chroma_path,
+            collection_name=ml_cfg.get("collection_name", "mistake_library"),
+            top_k=ml_cfg.get("top_k", 3),
+        )
+    except Exception as e:
+        logger.warning("mistake_library_init_failed", error=str(e))
+        subsystems["mistake_library"] = None
+
+    # Load Q-table from disk if available
+    subsystems["ctr_engine"].load()
+
+    logger.info("v2_subsystems_bootstrapped", components=list(subsystems.keys()))
+    return subsystems
+
+
+def _get_v2_subsystems() -> dict:
+    """Returns the bootstrapped v2 subsystems (public for chat_routes)."""
+    global _v2_subsystems, _hyperparams
+    if _v2_subsystems is None:
+        if _hyperparams is None:
+            _hyperparams = _load_hyperparams()
+        _v2_subsystems = _bootstrap_v2(_hyperparams)
+    return _v2_subsystems
 
 
 def _get_graph():
     """Returns a compiled graph with live agents and tools."""
-    global _agents, _tools, _hyperparams, _torsion_penalties
+    global _agents, _tools, _hyperparams, _torsion_penalties, _v2_subsystems
     if _agents is None:
         _hyperparams = _load_hyperparams()
         _agents = _build_agents(_hyperparams)
         _tools = _build_tools()
         _torsion_penalties = _load_torsion_penalties()
+        _v2_subsystems = _bootstrap_v2(_hyperparams)
         logger.info("sage_pipeline_bootstrapped",
                      agents=list(_agents.keys()),
-                     tools=list(_tools.keys()))
+                     tools=list(_tools.keys()),
+                     v2=list(_v2_subsystems.keys()))
     return build_graph(_agents, _tools, _hyperparams, _torsion_penalties)
 
 
@@ -226,16 +288,39 @@ async def root():
         "service": "SAGE-PRO Engine",
         "version": "2.0.0",
         "aode": True,
-        "endpoints": ["/v1/code", "/v1/sage/stream", "/v1/review", "/healthz", "/readyz"],
+        "endpoints": ["/v1/code", "/v1/sage/stream", "/v1/review", "/v1/correction", "/v1/history", "/auth/google", "/auth/me", "/healthz", "/readyz"],
     }
 
 
 @app.post("/v1/code", response_model=APIResponse)
 async def generate_code(req: CodeRequest):
-    """Generates adversarially-hardened code for a given task."""
+    """Generates adversarially-hardened code for a given task.
+    
+    v2 enhancement: Retrieves past mistakes from the Mistake Library
+    and injects them as hidden context before running the pipeline.
+    """
     graph = _get_graph()
+    
+    # ── v2: Retrieve past mistakes and inject as context ──
+    subsystems = _get_v2_subsystems()
+    mistake_context = ""
+    ml = subsystems.get("mistake_library")
+    if ml is not None:
+        try:
+            from sage.core.udrk_kernel import build_mistake_context
+            mistakes = ml.retrieve(query_text=req.task)
+            mistake_context = build_mistake_context(mistakes)
+        except Exception as e:
+            logger.warning("mistake_retrieval_failed", error=str(e))
+
+    # Prepend mistake context to the task if available
+    enriched_task = req.task
+    if mistake_context:
+        enriched_task = f"{mistake_context}\n\n---\n\n{req.task}"
+        logger.info("mistake_context_injected", mistakes_found=len(mistake_context.split("\n")))
+
     sage_req = SageRequest(
-        task=req.task,
+        task=enriched_task,
         context_files=req.context_files,
         max_cycles=req.max_cycles,
         priority=req.priority,
@@ -243,6 +328,17 @@ async def generate_code(req: CodeRequest):
 
     try:
         result = await graph.ainvoke({"request": sage_req, "repo_files": []})
+        
+        # ── v2: Log to routing ledger for daily batch processing ──
+        ledger = subsystems["routing_ledger"]
+        ledger.log(
+            user_id="anonymous",  # In production, extract from JWT
+            query_hash=str(hash(req.task)),
+            cluster_id=0,  # In production, from CTR engine
+            action_idx=0,
+            agent_sequence=["architect", "implementer", "red_team", "synthesizer"],
+        )
+        
         return APIResponse(
             request_id=str(uuid.uuid4()),
             **result,

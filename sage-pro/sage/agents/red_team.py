@@ -22,6 +22,7 @@ class RedTeam:
         primary_temperature: float,
         secondary_temperature: float,
         prompt_path: str,
+        udrk_prompt: str = "",
     ) -> None:
         """Initializes the Red-Team ensemble."""
         self.primary = VLLMAgent(
@@ -29,14 +30,16 @@ class RedTeam:
             base_url=base_url,
             model_name=primary_model,
             temperature=primary_temperature,
-            system_prompt_path=prompt_path
+            system_prompt_path=prompt_path,
+            udrk_prompt=udrk_prompt,
         )
         self.secondary = VLLMAgent(
             name="RedTeam-Secondary",
             base_url=base_url,
             model_name=secondary_model,
             temperature=secondary_temperature,
-            system_prompt_path=prompt_path
+            system_prompt_path=prompt_path,
+            udrk_prompt=udrk_prompt,
         )
 
     async def attack(self, code: str, spec: str) -> Dict[str, Any]:

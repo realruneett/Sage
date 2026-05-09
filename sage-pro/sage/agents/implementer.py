@@ -16,6 +16,7 @@ class Implementer(VLLMAgent):
         model_name: str,
         prompt_path: str,
         temperature: float,
+        udrk_prompt: str = "",
     ) -> None:
         """Initializes the Implementer with specialized parameters for MI300X."""
         super().__init__(
@@ -23,7 +24,8 @@ class Implementer(VLLMAgent):
             base_url=base_url,
             model_name=model_name,
             temperature=temperature,
-            system_prompt_path=prompt_path
+            system_prompt_path=prompt_path,
+            udrk_prompt=udrk_prompt,
         )
 
     async def implement(self, spec: str, torsion_suffix: str) -> str:

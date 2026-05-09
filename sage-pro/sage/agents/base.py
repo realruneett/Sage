@@ -39,6 +39,7 @@ class VLLMAgent:
         max_tokens: int = 4096,
         temperature: float = 0.2,
         system_prompt_path: Optional[str] = None,
+        udrk_prompt: str = "",
         api_timeout_sec: float = 300.0,
         api_max_retries: int = 3,
     ) -> None:
@@ -59,12 +60,13 @@ class VLLMAgent:
         self.temperature = temperature
         self.api_timeout_sec = api_timeout_sec
         self.api_max_retries = api_max_retries
-        self.system_prompt = ""
-
+        self.system_prompt = udrk_prompt
+        
         if system_prompt_path:
             path = Path(system_prompt_path)
             if path.exists():
-                self.system_prompt = path.read_text(encoding="utf-8")
+                file_prompt = path.read_text(encoding="utf-8")
+                self.system_prompt = f"{self.system_prompt}\n\n{file_prompt}".strip()
                 logger.info("agent_prompt_loaded", agent=name, path=system_prompt_path)
             else:
                 logger.warning("agent_prompt_not_found", agent=name, path=system_prompt_path)
