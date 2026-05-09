@@ -205,6 +205,12 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
     from sage.core.reward_crystallizer import RewardCrystallizer
     from sage.core.routing_ledger import RoutingLedger
 
+    # Novel Systems
+    from sage.core.agent_spawner import DynamicAgentSpawner
+    from sage.core.execution_trace_embedder import ExecutionTraceEmbedder
+    from sage.core.adversarial_perturber import AdversarialLatentPerturber
+    from sage.core.ast_diff_reward import ASTDiffRewardCrystallizer
+
     subsystems = {
         "ctr_engine": CTREngine(hyperparams),
         "manifold_mutator": ManifoldMutator(hyperparams),
@@ -212,6 +218,11 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
         "correction_detector": CorrectionDetector(hyperparams),
         "reward_crystallizer": RewardCrystallizer(hyperparams),
         "routing_ledger": RoutingLedger(),
+        # Novel v2 systems
+        "agent_spawner": DynamicAgentSpawner(hyperparams),
+        "execution_trace_embedder": ExecutionTraceEmbedder(hyperparams),
+        "adversarial_perturber": AdversarialLatentPerturber(hyperparams),
+        "ast_diff_reward": ASTDiffRewardCrystallizer(hyperparams),
     }
 
     # Mistake Library requires ChromaDB — only init if CHROMA_PATH is set

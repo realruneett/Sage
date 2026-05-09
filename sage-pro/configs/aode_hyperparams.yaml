@@ -190,3 +190,42 @@ sandbox:
     python: python:3.12-slim
     javascript: node:20-slim
     bash: bash:5
+
+# ══════════════════════════════════════════════════
+# NOVEL SYSTEMS CONFIG
+# ══════════════════════════════════════════════════
+
+# Novel System 1: Dynamic Agent Spawner
+agent_spawner:
+  void_q_threshold: -0.15
+  spawn_threshold: 0.60
+  consecutive_checks: 3
+  max_spawned_agents: 8
+  base_agents:
+    - architect
+    - implementer
+    - synthesizer
+    - red_team
+
+# Novel System 2: Execution Trace Embeddings
+execution_trace:
+  ast_embedding_dims: 128
+  trace_embedding_dims: 64
+  state_embedding_dims: 64
+  combined_dims: 256
+  hash_depth: 6
+
+# Novel System 3: Adversarial Latent Perturbation
+adversarial_perturbation:
+  alpha: 0.3
+  num_perturbations: 3
+  penalty_threshold: -0.2
+  noise_stddev: 0.05
+
+# Novel System 4: AST Diff Reward Crystallizer
+ast_reward:
+  w_levenshtein: 0.25
+  w_node_ratio: 0.25
+  w_type_change: 0.20
+  w_signature_stability: 0.15
+  w_control_flow: 0.15
