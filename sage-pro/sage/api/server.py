@@ -60,18 +60,19 @@ def _env(key: str, default: str) -> str:
 
 def _build_agents(hyperparams: dict) -> dict:
     """Instantiate all 4 agents + router from environment config."""
+    vllm_hosts = hyperparams.get("vllm_hosts", {})
     return {
         "architect": Architect(
-            base_url=_env("VLLM_HOST_ARCHITECT", "http://localhost:8001/v1"),
+            base_url=_env("VLLM_HOST_ARCHITECT", vllm_hosts.get("architect", "http://localhost:8001/v1")),
         ),
         "implementer": Implementer(
-            base_url=_env("VLLM_HOST_IMPLEMENTER", "http://localhost:8002/v1"),
+            base_url=_env("VLLM_HOST_IMPLEMENTER", vllm_hosts.get("implementer", "http://localhost:8002/v1")),
         ),
         "synthesizer": Synthesizer(
-            base_url=_env("VLLM_HOST_SYNTHESIZER", "http://localhost:8003/v1"),
+            base_url=_env("VLLM_HOST_SYNTHESIZER", vllm_hosts.get("synthesizer", "http://localhost:8003/v1")),
         ),
         "red_team": RedTeam(
-            base_url=_env("VLLM_HOST_REDTEAM", "http://localhost:8004/v1"),
+            base_url=_env("VLLM_HOST_REDTEAM", vllm_hosts.get("redteam", "http://localhost:8004/v1")),
         ),
         "router": CodeTopologyRouter(
             model_name=hyperparams.get("embedding_model", "BAAI/bge-small-en-v1.5"),
@@ -249,15 +250,27 @@ async def readiness_check():
     if _hyperparams is None:
         _hyperparams = _load_hyperparams()
         
-    ports = _hyperparams.get("vllm_ports", [8001, 8002, 8003, 8004])
+    vllm_hosts = _hyperparams.get("vllm_hosts", {})
+    hosts = list(vllm_hosts.values())
+    
+    if not hosts:
+        hosts = [
+            "http://localhost:8001/v1",
+            "http://localhost:8002/v1",
+            "http://localhost:8003/v1",
+            "http://localhost:8004/v1"
+        ]
+        
     async with httpx.AsyncClient() as client:
-        for port in ports:
+        for host in hosts:
+            # We want to ping the base URL's /models endpoint
+            url = f"{host.rstrip('/')}/models"
             try:
-                resp = await client.get(f"http://localhost:{port}/v1/models")
+                resp = await client.get(url)
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=503, detail=f"vLLM port {port} not ready")
+                    raise HTTPException(status_code=503, detail=f"vLLM host {host} not ready")
             except Exception:
-                raise HTTPException(status_code=503, detail=f"vLLM port {port} unreachable")
+                raise HTTPException(status_code=503, detail=f"vLLM host {host} unreachable")
     return {"status": "all_systems_ready"}
 
 
