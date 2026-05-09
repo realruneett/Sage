@@ -148,7 +148,7 @@ def _make_pre_attack_node(red_team: Any) -> Any:
     return pre_attack_node
 
 
-def _make_torsion_node(router: CodeTopologyRouter) -> Any:
+def _make_torsion_node(router: CodeTopologyRouter, torsion_penalties: Dict[str, Dict[int, float]]) -> Any:
     """Creates the torsion node — computes orthogonal nudges + logit biases."""
     async def torsion_node(state: SageState) -> Dict[str, Any]:
         logger.info("node_torsion_start")
@@ -166,12 +166,12 @@ def _make_torsion_node(router: CodeTopologyRouter) -> Any:
         }
 
         # Compute two orthogonal torsion axes
-        suffix_a, bias_a = compute_torsion_suffix(spec, router.embedder, suffix_library)
+        suffix_a, bias_a = compute_torsion_suffix(spec, router.embedder, suffix_library, torsion_penalties)
 
         # For the second axis, remove the first selection and pick again
         remaining = {k: v for k, v in suffix_library.items() if v != suffix_a}
         if remaining:
-            suffix_b, bias_b = compute_torsion_suffix(spec, router.embedder, remaining)
+            suffix_b, bias_b = compute_torsion_suffix(spec, router.embedder, remaining, torsion_penalties)
         else:
             suffix_b, bias_b = suffix_a, bias_a
 
@@ -329,7 +329,7 @@ def _make_verify_node(tools: Dict[str, Any]) -> Any:
     return verify_node
 
 
-def _make_emit_node() -> Any:
+def _make_emit_node(hyperparams: Dict[str, Any]) -> Any:
     """Creates the emit node — assembles final SageResponse."""
     async def emit_node(state: SageState) -> Dict[str, Any]:
         logger.info("node_emit_start")
@@ -339,7 +339,10 @@ def _make_emit_node() -> Any:
 
         # Estimate VRAM from trajectory (rough proxy)
         nash_cycles = len(state.get("cycle_history", []))
-        vram_estimate = 89.0 + (nash_cycles * 2.5)  # base load + per-cycle overhead
+        
+        base_gb = hyperparams.get("vram_base_gb", 89.0)
+        per_cycle_gb = hyperparams.get("vram_per_cycle_gb", 2.5)
+        vram_estimate = base_gb + (nash_cycles * per_cycle_gb)
 
         logger.info("node_emit_complete", elapsed_sec=elapsed, vram_gb=vram_estimate)
 
@@ -359,6 +362,7 @@ def build_graph(
     agents: Dict[str, Any],
     tools: Dict[str, Any],
     hyperparams: Optional[Dict[str, Any]] = None,
+    torsion_penalties: Optional[Dict[str, Dict[int, float]]] = None,
 ) -> Any:
     """Wires the SAGE-PRO StateGraph with live agent and tool dependencies.
 
@@ -390,6 +394,9 @@ def build_graph(
             },
         }
 
+    if torsion_penalties is None:
+        torsion_penalties = {}
+
     # Extract agent instances
     architect = agents["architect"]
     implementer = agents["implementer"]
@@ -404,14 +411,14 @@ def build_graph(
     workflow.add_node("route", _make_route_node(router))
     workflow.add_node("architect", _make_architect_node(architect))
     workflow.add_node("pre_attack", _make_pre_attack_node(red_team))
-    workflow.add_node("torsion", _make_torsion_node(router))
+    workflow.add_node("torsion", _make_torsion_node(router, torsion_penalties))
     workflow.add_node("parallel_branches", _make_parallel_branches_node(
         architect, implementer, red_team, synthesizer,
     ))
     workflow.add_node("synthesize", _make_synthesize_node(synthesizer))
     workflow.add_node("crucible", _make_crucible_node(red_team, synthesizer, tools, hyperparams))
     workflow.add_node("verify", _make_verify_node(tools))
-    workflow.add_node("emit", _make_emit_node())
+    workflow.add_node("emit", _make_emit_node(hyperparams))
 
     # Wire the pipeline
     workflow.set_entry_point("ingest")

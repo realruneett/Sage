@@ -58,7 +58,7 @@ def _env(key: str, default: str) -> str:
     return os.environ.get(key, default)
 
 
-def _build_agents() -> dict:
+def _build_agents(hyperparams: dict) -> dict:
     """Instantiate all 4 agents + router from environment config."""
     return {
         "architect": Architect(
@@ -73,7 +73,12 @@ def _build_agents() -> dict:
         "red_team": RedTeam(
             base_url=_env("VLLM_HOST_REDTEAM", "http://localhost:8004/v1"),
         ),
-        "router": CodeTopologyRouter(),
+        "router": CodeTopologyRouter(
+            model_name=hyperparams.get("embedding_model", "BAAI/bge-small-en-v1.5"),
+            index_dims=hyperparams.get("index_dims", 384),
+            max_neighbors=hyperparams.get("routing_max_neighbors", 5),
+            search_cap=hyperparams.get("routing_search_cap", 500),
+        ),
     }
 
 
@@ -138,23 +143,36 @@ def _load_hyperparams() -> dict:
         }
 
 
+def _load_torsion_penalties() -> dict:
+    """Load torsion token penalty map from YAML config."""
+    config_path = "configs/torsion_penalties.yaml"
+    try:
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        logger.warning("torsion_penalties_not_found", path=config_path)
+        return {}
+
+
 # Lazy-initialized globals — created on first request
 _agents = None
 _tools = None
 _hyperparams = None
+_torsion_penalties = None
 
 
 def _get_graph():
     """Returns a compiled graph with live agents and tools."""
-    global _agents, _tools, _hyperparams
+    global _agents, _tools, _hyperparams, _torsion_penalties
     if _agents is None:
-        _agents = _build_agents()
-        _tools = _build_tools()
         _hyperparams = _load_hyperparams()
+        _agents = _build_agents(_hyperparams)
+        _tools = _build_tools()
+        _torsion_penalties = _load_torsion_penalties()
         logger.info("sage_pipeline_bootstrapped",
                      agents=list(_agents.keys()),
                      tools=list(_tools.keys()))
-    return build_graph(_agents, _tools, _hyperparams)
+    return build_graph(_agents, _tools, _hyperparams, _torsion_penalties)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -227,7 +245,11 @@ async def health_check():
 @app.get("/readyz")
 async def readiness_check():
     """Checks if all co-resident vLLM backends are reachable."""
-    ports = [8001, 8002, 8003, 8004]
+    global _hyperparams
+    if _hyperparams is None:
+        _hyperparams = _load_hyperparams()
+        
+    ports = _hyperparams.get("vllm_ports", [8001, 8002, 8003, 8004])
     async with httpx.AsyncClient() as client:
         for port in ports:
             try:
@@ -240,4 +262,7 @@ async def readiness_check():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    hyperparams = _load_hyperparams()
+    host = hyperparams.get("server_host", "0.0.0.0")
+    port = hyperparams.get("server_port", 8000)
+    uvicorn.run(app, host=host, port=port)

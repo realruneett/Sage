@@ -34,16 +34,22 @@ class CodeTopologyRouter:
         self,
         model_name: str = "BAAI/bge-small-en-v1.5",
         index_dims: int = 384,
+        max_neighbors: int = 5,
+        search_cap: int = 500,
     ) -> None:
         """Initializes the router with the specified embedder and index.
 
         Args:
             model_name: The SentenceTransformer model to use for embedding.
             index_dims: Dimensionality of the embedding vectors.
+            max_neighbors: Max topological voids to return.
+            search_cap: Max index size to scan.
         """
         self.embedder = SentenceTransformer(model_name)
         self.index = faiss.IndexHNSWFlat(index_dims, 32)
         self.index_dims = index_dims
+        self.max_neighbors = max_neighbors
+        self.search_cap = search_cap
         self.file_map: List[str] = []
         logger.info("topology_router_initialized", model=model_name)
 
@@ -93,14 +99,14 @@ class CodeTopologyRouter:
         task_vec = self.embedder.encode([task], convert_to_numpy=True)
 
         # ── ARGMAX DISTANCE: search ALL indexed vectors, pick the FARTHEST ──
-        # Cap at 500 to avoid OOM on very large repos
-        search_k = min(self.index.ntotal, 500)
+        # Cap at search_cap to avoid OOM on very large repos
+        search_k = min(self.index.ntotal, self.search_cap)
         distances, indices = self.index.search(task_vec, search_k)
 
         # distances from HNSW are L2 — higher = farther = more novel
         # Sort by DESCENDING distance to get farthest-first
         sorted_order = np.argsort(distances[0])[::-1]  # descending
-        k = min(5, len(sorted_order))
+        k = min(self.max_neighbors, len(sorted_order))
         farthest_indices = [indices[0][sorted_order[i]] for i in range(k)]
         farthest_distances = [distances[0][sorted_order[i]] for i in range(k)]
 

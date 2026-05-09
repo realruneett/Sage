@@ -12,5 +12,21 @@ damage_weights:
   tests: 1.0
   complexity: 0.05
 
+# Router Config
 embedding_model: "BAAI/bge-small-en-v1.5"
 index_dims: 384
+routing_max_neighbors: 5
+routing_search_cap: 500
+
+# API Server Config
+server_host: "0.0.0.0"
+server_port: 8000
+vllm_ports:
+  - 8001
+  - 8002
+  - 8003
+  - 8004
+
+# VRAM Estimation
+vram_base_gb: 89.0
+vram_per_cycle_gb: 2.5
