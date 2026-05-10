@@ -88,6 +88,10 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
         priority=priority,
     )
 
+    import uuid
+    thread_id = str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
     try:
         graph = _get_graph()
 
@@ -95,30 +99,72 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
         yield _sse_event("agent_start", agent="SYSTEM", content="Initialising SAGE-PRO AODE council …",
                          vram_gb=0, nash_cycle=0, divergence=1.0, status="BOOTING")
 
-        # Run the full graph
-        result = await graph.ainvoke({"request": sage_req, "repo_files": []})
+        # True Live-Streaming via astream
+        inputs = {"request": sage_req, "repo_files": []}
+        
+        vram_peak = 0.0
+        nash_cycles = 0
+        divergence = 0.0
+        final_code = ""
 
-        # Extract structured data from result
-        final_code = result.get("final_code", "")
-        nash_cycles = len(result.get("cycle_history", []))
-        divergence = result.get("divergence_index", 0.0)
-        vram_peak = result.get("vram_peak_gb", 0.0)
-        xai_trace = result.get("xai_trace", [])
+        # Phase 1: Stream until breakpoint (after synthesize)
+        async for chunk in graph.astream(inputs, config, stream_mode="updates"):
+            for node_name, state_update in chunk.items():
+                vram_peak = state_update.get("vram_peak_gb", vram_peak)
+                nash_cycles = len(state_update.get("cycle_history", []))
+                divergence = state_update.get("divergence_index", divergence)
+                if "final_code" in state_update:
+                    final_code = state_update["final_code"]
+                
+                # Extract the specific trace entry added by this node
+                traces = state_update.get("xai_trace", [])
+                if traces:
+                    trace = traces[-1]
+                    yield _sse_event(
+                        "agent_done",
+                        agent=trace.step_name,
+                        content=trace.action_taken,
+                        vram_gb=vram_peak,
+                        nash_cycle=nash_cycles,
+                        divergence=getattr(trace, "divergence_signal", divergence),
+                        status="RUNNING",
+                    )
 
-        # Emit per-agent traces from the XAI log
-        for trace_entry in xai_trace:
-            agent_name = getattr(trace_entry, "step_name", "SYSTEM")
-            action = getattr(trace_entry, "action_taken", "")
-            div_signal = getattr(trace_entry, "divergence_signal", divergence)
-            yield _sse_event(
-                "agent_done",
-                agent=agent_name,
-                content=action,
-                vram_gb=vram_peak,
-                nash_cycle=nash_cycles,
-                divergence=div_signal,
-                status="RUNNING",
-            )
+        # Check if we hit the interrupt
+        current_state = graph.get_state(config)
+        if current_state.next and "human_feedback_gate" in current_state.next:
+            yield _sse_event("agent_start", agent="SYSTEM", content="Pipeline paused for Artifact Feedback...",
+                             vram_gb=vram_peak, nash_cycle=nash_cycles, divergence=divergence, status="PAUSED")
+            
+            # Wait a brief moment to allow UI to catch up or submit feedback
+            # In a real deployed app, the user would trigger a separate resume endpoint.
+            # For the dashboard demo, we'll auto-resume after a delay if no feedback.
+            await asyncio.sleep(2)
+            
+            # Phase 2: Resume graph execution
+            yield _sse_event("agent_start", agent="SYSTEM", content="Resuming pipeline into Crucible...",
+                             vram_gb=vram_peak, nash_cycle=nash_cycles, divergence=divergence, status="RESUMING")
+            
+            async for chunk in graph.astream(None, config, stream_mode="updates"):
+                for node_name, state_update in chunk.items():
+                    vram_peak = state_update.get("vram_peak_gb", vram_peak)
+                    nash_cycles = len(state_update.get("cycle_history", []))
+                    divergence = state_update.get("divergence_index", divergence)
+                    if "final_code" in state_update:
+                        final_code = state_update["final_code"]
+                    
+                    traces = state_update.get("xai_trace", [])
+                    if traces:
+                        trace = traces[-1]
+                        yield _sse_event(
+                            "agent_done",
+                            agent=trace.step_name,
+                            content=trace.action_taken,
+                            vram_gb=vram_peak,
+                            nash_cycle=nash_cycles,
+                            divergence=getattr(trace, "divergence_signal", divergence),
+                            status="RUNNING",
+                        )
 
         # Final event
         yield _sse_event(

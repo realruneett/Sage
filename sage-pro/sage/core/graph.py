@@ -27,6 +27,7 @@ from functools import partial
 from datetime import datetime
 
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from sage.core.types import SageRequest, SageResponse, XAITrace, CrucibleCycle
 from sage.core.routing import CodeTopologyRouter
 from sage.core.torsion import compute_torsion_suffix
@@ -547,6 +548,8 @@ def build_graph(
     # in the checkpoint, then call graph.stream(None, config)
     # to resume.  The human_feedback_gate node reads the injected
     # state and passes it downstream to the crucible.
+    memory = MemorySaver()
     return workflow.compile(
+        checkpointer=memory,
         interrupt_after=["synthesize"],
     )
