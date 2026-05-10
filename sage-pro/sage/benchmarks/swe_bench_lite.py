@@ -3,7 +3,7 @@ import structlog
 import asyncio
 from typing import List, Dict, Any, Optional
 from datasets import load_dataset
-from sage.core.graph import build_graph
+from sage.api.server import _get_graph
 
 logger = structlog.get_logger(__name__)
 
@@ -24,7 +24,7 @@ async def run_swe_bench_lite(limit: Optional[int] = None) -> List[Dict[str, Any]
         issues = issues[:limit]
         
     results = []
-    graph = build_graph()
+    graph = _get_graph()
     
     for issue in issues:
         instance_id = issue["instance_id"]

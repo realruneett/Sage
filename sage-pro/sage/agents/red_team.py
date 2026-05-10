@@ -69,7 +69,7 @@ class RedTeam:
         tests: List[str] = []
         
         for resp in responses:
-            if isinstance(resp, Exception):
+            if isinstance(resp, BaseException):
                 logger.error("red_team_sub_agent_failed", error=str(resp))
                 continue
             

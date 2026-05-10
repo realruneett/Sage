@@ -3,7 +3,7 @@ import structlog
 import asyncio
 from typing import List, Dict, Any, Optional
 from datasets import load_dataset
-from sage.core.graph import build_graph
+from sage.api.server import _get_graph
 
 logger = structlog.get_logger(__name__)
 
@@ -22,7 +22,7 @@ async def run_livecodebench(limit: Optional[int] = None) -> List[Dict[str, Any]]
         problems = problems[:limit]
         
     results = []
-    graph = build_graph()
+    graph = _get_graph()
     
     for problem in problems:
         question_id = problem.get("question_id", "unknown")

@@ -160,6 +160,8 @@ class VLLMAgent:
                         raise
                     retries += 1
                     await asyncio.sleep(2 ** retries)
+            
+            raise RuntimeError(f"vLLM completion failed for {self.name} after {self.api_max_retries} retries")
 
     @staticmethod
     def _extract_code_block(text: str) -> str | None:

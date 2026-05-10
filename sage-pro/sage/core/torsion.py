@@ -13,7 +13,7 @@ Two levels of enforcement:
 
 import numpy as np
 import structlog
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +39,7 @@ def torsion_to_logit_bias(torsion_label: str, penalty_map: Dict[str, Dict[int, f
 
 def compute_torsion_suffix(
     design_text: str,
-    embedder: any,
+    embedder: Any,
     suffix_library: Dict[str, str],
     penalty_map: Dict[str, Dict[int, float]],
 ) -> Tuple[str, Dict[int, float]]:

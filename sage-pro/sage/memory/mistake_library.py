@@ -105,7 +105,7 @@ class MistakeLibrary:
         if self.collection.count() == 0:
             return []
 
-        kwargs = {"n_results": self.top_k}
+        kwargs: Dict[str, Any] = {"n_results": self.top_k}
 
         if query_embedding is not None:
             kwargs["query_embeddings"] = [query_embedding]

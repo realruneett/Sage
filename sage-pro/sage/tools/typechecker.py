@@ -21,7 +21,8 @@ async def run_mypy(path: str) -> List[Dict[str, Any]]:
         return []
 
     findings = []
-    for line in stdout.splitlines():
+    output_str = stdout.decode("utf-8", errors="ignore")
+    for line in output_str.splitlines():
         # Mypy format: file:line: error_type: message
         parts = line.split(":", 3)
         if len(parts) >= 4:
