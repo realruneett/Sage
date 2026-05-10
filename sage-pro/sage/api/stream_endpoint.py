@@ -83,6 +83,33 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
 
     from sage.core.complexity_router import get_strategy
     strategy = get_strategy(query)
+
+    # ── Fast path for simple queries — bypass graph entirely ──────────────
+    if strategy["tier"] == "simple":
+        import httpx
+        yield _sse_event("agent_start", agent="SYSTEM", content="Simple query — direct response",
+                         vram_gb=0, nash_cycle=0, divergence=0.0, status="RUNNING")
+        full_reply = ""
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                async with client.stream("POST", "http://localhost:11434/api/generate",
+                    json={"model": "codellama:34b", "prompt": query, "stream": True}) as r:
+                    async for line in r.aiter_lines():
+                        if line:
+                            import json as _json
+                            try:
+                                chunk = _json.loads(line)
+                                token = chunk.get("response", "")
+                                full_reply += token
+                                if chunk.get("done"):
+                                    break
+                            except Exception:
+                                pass
+        except Exception as e:
+            full_reply = f"Error: {e}"
+        yield _sse_event("agent_done", agent="sage", content=full_reply,
+                         vram_gb=24.0, nash_cycle=0, divergence=0.0, status="COMPLETE")
+        return
     effective_cycles = min(max_cycles, strategy["max_cycles"])
     # Inject tier into hyperparams so _build_agents picks right models
     try:
