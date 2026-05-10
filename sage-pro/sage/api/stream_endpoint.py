@@ -141,9 +141,8 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
                         status="RUNNING",
                     )
 
-        # Check if we hit the interrupt
-        current_state = graph.get_state(config)
-        if current_state.next and "human_feedback_gate" in current_state.next:
+        # interrupt disabled for chatbot mode
+        if False:
             yield _sse_event("agent_start", agent="SYSTEM", content="Pipeline paused for Artifact Feedback...",
                              vram_gb=vram_peak, nash_cycle=nash_cycles, divergence=divergence, status="PAUSED")
             

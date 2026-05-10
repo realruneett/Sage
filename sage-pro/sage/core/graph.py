@@ -309,7 +309,7 @@ def _make_human_feedback_gate() -> Any:
 
         if not has_feedback or not feedback:
             logger.info("human_feedback_gate_passthrough")
-            return {}
+            return {"pending_human_feedback": False}
 
         # Inject human feedback into the architect spec so the
         # crucible loop (and all downstream agents) can see it.
@@ -552,8 +552,5 @@ def build_graph(
     # in the checkpoint, then call graph.stream(None, config)
     # to resume.  The human_feedback_gate node reads the injected
     # state and passes it downstream to the crucible.
-    memory = MemorySaver()
     return workflow.compile(
-        checkpointer=memory,
-        interrupt_after=["synthesize"],
     )
