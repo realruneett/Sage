@@ -143,19 +143,38 @@ class VLLMAgent:
                         action_taken=f"Generated {len(content)} chars (Prompt hash: {prompt_hash})",
                     )
 
+                    # Extract code blocks from the response
+                    extracted_code = self._extract_code_block(content)
+
                     return AgentResponse(
                         agent_name=self.name,
                         content=content,
+                        code=extracted_code,
                         latency_ms=latency_ms,
                         thought_trace=[f"Prompt hash: {prompt_hash}"],
                     )
 
                 except Exception as e:
-                    if retries >= max_retries:
+                    if retries >= self.api_max_retries:
                         logger.error("vllm_completion_failed", agent=self.name, error=str(e))
                         raise
                     retries += 1
                     await asyncio.sleep(2 ** retries)
+
+    @staticmethod
+    def _extract_code_block(text: str) -> str | None:
+        """Extracts the first ```python code block from an LLM response.
+
+        Args:
+            text: Raw LLM response text.
+
+        Returns:
+            The extracted code string, or None if no block found.
+        """
+        import re
+        pattern = r"```(?:python)?\s*\n(.*?)```"
+        match = re.search(pattern, text, re.DOTALL)
+        return match.group(1).strip() if match else None
 
     async def stream(
         self,

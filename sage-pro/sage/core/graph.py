@@ -412,8 +412,12 @@ def _make_verify_node(tools: Dict[str, Any]) -> Any:
 
         # Run all grounding tools in parallel
         import asyncio
-        ruff_task = tools["ruff"](code) if "ruff" in tools else asyncio.coroutine(lambda: [])()
-        bandit_task = tools["bandit"](code) if "bandit" in tools else asyncio.coroutine(lambda: [])()
+
+        async def _noop():
+            return []
+
+        ruff_task = tools["ruff"](code) if "ruff" in tools else _noop()
+        bandit_task = tools["bandit"](code) if "bandit" in tools else _noop()
 
         results = await asyncio.gather(ruff_task, bandit_task, return_exceptions=True)
 

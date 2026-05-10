@@ -93,15 +93,15 @@ def _build_agents(hyperparams: dict) -> dict:
         ),
         "synthesizer": Synthesizer(
             base_url=_env("VLLM_HOST_SYNTHESIZER", vllm_hosts.get("synthesizer", "http://localhost:8003/v1")),
-            model_name=syn_cfg.get("model_name", "deepseek-coder-v2:16b"),
+            model_name=syn_cfg.get("model_name", "codellama:34b"),
             prompt_path=syn_cfg.get("prompt_path", "sage/prompts/synthesizer.md"),
             temperature=syn_cfg.get("temperature", 0.0),
             udrk_prompt=build_udrk_system_prompt("synthesizer", hyperparams),
         ),
         "red_team": RedTeam(
             base_url=_env("VLLM_HOST_REDTEAM", vllm_hosts.get("redteam", "http://localhost:8004/v1")),
-            primary_model=rt_cfg.get("primary_model", "starcoder2:15b"),
-            secondary_model=rt_cfg.get("secondary_model", "starcoder2:15b"),
+            primary_model=rt_cfg.get("primary_model", "deepseek-coder-v2:16b"),
+            secondary_model=rt_cfg.get("secondary_model", "deepseek-r1:32b"),
             primary_temperature=rt_cfg.get("primary_temperature", 0.7),
             secondary_temperature=rt_cfg.get("secondary_temperature", 0.5),
             prompt_path=rt_cfg.get("prompt_path", "sage/prompts/red_team.md"),
@@ -194,6 +194,7 @@ _tools = None
 _hyperparams = None
 _torsion_penalties = None
 _v2_subsystems = None
+_compiled_graph = None
 
 
 def _bootstrap_v2(hyperparams: dict) -> dict:
@@ -261,19 +262,27 @@ def _get_v2_subsystems() -> dict:
 
 
 def _get_graph():
-    """Returns a compiled graph with live agents and tools."""
-    global _agents, _tools, _hyperparams, _torsion_penalties, _v2_subsystems
-    if _agents is None:
+    """Returns a compiled graph with live agents and tools.
+
+    The compiled graph (including its MemorySaver checkpointer) is
+    cached as a module-level global so that checkpoint state persists
+    across requests.  This is CRITICAL for the Human-in-the-Loop
+    interrupt_after pattern — if we rebuilt the graph on every call,
+    the MemorySaver would be fresh and all checkpoint state lost.
+    """
+    global _agents, _tools, _hyperparams, _torsion_penalties, _v2_subsystems, _compiled_graph
+    if _compiled_graph is None:
         _hyperparams = _load_hyperparams()
         _agents = _build_agents(_hyperparams)
         _tools = _build_tools()
         _torsion_penalties = _load_torsion_penalties()
         _v2_subsystems = _bootstrap_v2(_hyperparams)
+        _compiled_graph = build_graph(_agents, _tools, _hyperparams, _torsion_penalties)
         logger.info("sage_pipeline_bootstrapped",
                      agents=list(_agents.keys()),
                      tools=list(_tools.keys()),
                      v2=list(_v2_subsystems.keys()))
-    return build_graph(_agents, _tools, _hyperparams, _torsion_penalties)
+    return _compiled_graph
 
 
 # ─────────────────────────────────────────────────────────────────────
