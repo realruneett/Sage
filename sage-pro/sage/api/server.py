@@ -21,6 +21,7 @@ from sage.api.stream_endpoint import router as stream_router
 from sage.api.auth_routes import router as auth_router
 from sage.api.chat_routes import router as chat_router
 from sage.api.orchestrator_routes import router as orchestrator_router
+from sage.api.feature_routes import router as feature_router
 from sage.core.graph import build_graph
 from sage.core.types import SageRequest
 
@@ -38,13 +39,14 @@ from sage.tools.security import run_bandit, run_semgrep
 
 logger = structlog.get_logger(__name__)
 
-app = FastAPI(title="SAGE-PRO Engine API", version="2.0.0")
+app = FastAPI(title="SAGE-PRO Engine API", version="3.0.0")
 
 # Register routers
 app.include_router(stream_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(orchestrator_router)
+app.include_router(feature_router)
 
 # CORS Configuration
 app.add_middleware(
@@ -312,9 +314,19 @@ async def root():
     """SAGE-PRO API root — headless engine, no frontend."""
     return {
         "service": "SAGE-PRO Engine",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "aode": True,
-        "endpoints": ["/v1/code", "/v1/sage/stream", "/v1/review", "/v1/correction", "/v1/history", "/auth/google", "/auth/me", "/healthz", "/readyz"],
+        "features": [
+            "live_rendering", "vision_debugging", "time_travel",
+            "lsp_bridge", "chaos_dreamer",
+        ],
+        "endpoints": [
+            "/v1/code", "/v1/sage/stream", "/v1/review", "/v1/correction",
+            "/v1/history", "/auth/google", "/auth/me", "/healthz", "/readyz",
+            "/v1/preview/render", "/v1/vision/debug", "/v1/timeline/{thread_id}",
+            "/v1/lsp/references", "/v1/lsp/definition", "/v1/lsp/rename",
+            "/v1/dreamer/dream", "/v1/dreamer/start", "/v1/dreamer/stats",
+        ],
     }
 
 
