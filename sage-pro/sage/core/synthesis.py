@@ -16,7 +16,7 @@ the integrity of the divergence signal.
 
 import asyncio
 import structlog
-from typing import Tuple, Any, Dict
+from typing import Tuple, Any, Dict, Optional
 
 from sage.core.aode import lie_bracket_divergence
 
@@ -31,8 +31,8 @@ async def parallel_branches(
     red_team_pre: str,
     torsion_a: str,
     torsion_b: str,
-    logit_bias_a: Dict[int, float] = None,
-    logit_bias_b: Dict[int, float] = None,
+    logit_bias_a: Optional[Dict[int, float]] = None,
+    logit_bias_b: Optional[Dict[int, float]] = None,
 ) -> Tuple[str, str]:
     """Executes parallel 3-agent nested Lie bracket synthesis branches.
 

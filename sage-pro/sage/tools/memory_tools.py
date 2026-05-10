@@ -15,7 +15,7 @@ Config:
 import os
 import uuid
 import structlog
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logger = structlog.get_logger(__name__)
 
@@ -72,7 +72,7 @@ async def tool_memory_store(
     original_response: str,
     correction: str,
     domain: str,
-    responsible_agents: List[str] = None,
+    responsible_agents: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Stores a correction in the Mistake Library.
 

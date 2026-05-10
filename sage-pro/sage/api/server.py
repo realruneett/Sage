@@ -245,7 +245,7 @@ def _bootstrap_v2(hyperparams: dict) -> dict:
         subsystems["mistake_library"] = None
 
     # Load Q-table from disk if available
-    subsystems["ctr_engine"].load()
+    subsystems["ctr_engine"].load()  # type: ignore
 
     logger.info("v2_subsystems_bootstrapped", components=list(subsystems.keys()))
     return subsystems
