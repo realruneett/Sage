@@ -42,13 +42,13 @@ agents:
     prompt_path: "sage/prompts/implementer.md"
     temperature: 0.1
   synthesizer:
-    model_name: "deepseek-coder-v2:16b"
+    model_name: "codellama:34b"
     prompt_path: "sage/prompts/synthesizer.md"
     temperature: 0.0
   redteam:
-    primary_model: "starcoder2:15b"
+    primary_model: "deepseek-coder-v2:16b"
     primary_temperature: 0.7
-    secondary_model: "starcoder2:15b"
+    secondary_model: "deepseek-r1:32b"
     secondary_temperature: 0.5
     prompt_path: "sage/prompts/red_team.md"
 
@@ -134,8 +134,8 @@ ollama:
     orchestrator: qwen2.5:72b
     architect: qwen2.5:72b
     implementer: qwen2.5-coder:32b
-    synthesizer: deepseek-coder-v2:16b
-    red_team: qwen2.5-coder:32b
+    synthesizer: codellama:34b
+    red_team: deepseek-r1:32b
   options:
     num_ctx: 32768
     num_gpu: -1
