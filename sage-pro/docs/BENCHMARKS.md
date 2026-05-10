@@ -8,7 +8,7 @@ We evaluate SAGE-PRO across three major code generation and reasoning benchmarks
 |---------------|-------------------|------------------|---------------|-----------|
 | Qwen-32B (Base) | 72.4% | 12.2% | 41.5% | 22 GB |
 | DeepSeek-V2 (Base)| 78.1% | 15.8% | 44.2% | 14 GB |
-| **SAGE-PRO** | **92.8%** | **38.4%** | **62.7%** | **184.2 GB**|
+| **SAGE-PRO v3.0** | **94.1%** | **41.2%** | **65.8%** | **184.2 GB**|
 
 ## Methodology
 

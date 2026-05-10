@@ -16,14 +16,18 @@ curl -sSL https://raw.githubusercontent.com/realruneett/Sage/main/scripts/cloud_
    git clone https://github.com/realruneett/Sage.git
    cd Sage/sage-pro
    ```
-2. Build the ROCm image:
+2. Build the ROCm images for backend and frontend:
    ```bash
    docker compose build
    ```
-3. Start the engine:
+3. Start the engine and the UI:
    ```bash
    docker compose up -d
    ```
+4. **Access the IDE**: Open `http://<your-server-ip>:7860` in your browser.
+   The headless API will run concurrently on port 8000.
+
+*(Note: v3.0 requires `llava:34b` or equivalent loaded in Ollama for the Vision Debugging feature to function).*
 
 ## Troubleshooting
 
