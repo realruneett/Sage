@@ -1,46 +1,41 @@
-# 🌌 SAGE-PRO v3.0: Adversarial Orthogonal Divergence Engine
+# 🌌 SAGE-PRO v3.0: Adversarial Orthogonal Divergence Engine (AODE)
 
-**The world's most powerful agentic coding engine, architected for the AMD Instinct™ MI300X.**
+**The world's most powerful headless agentic reasoning engine, architected natively for the AMD Instinct™ MI300X Cloud Server.**
 
-SAGE-PRO (Adversarial Orthogonal Divergence Engine) is a production-grade multi-agent coding assistant that leverages the 192GB HBM3 memory density of the MI300X to run co-resident, high-parameter specialist agents in a non-abelian synthesis loop.
+SAGE-PRO is a production-grade, research-focused multi-agent coding engine. It leverages the massive 192GB HBM3 memory density of the MI300X to run a co-resident, high-parameter specialist 4-agent ensemble in a non-abelian mathematical synthesis loop. It is designed to be deployed as a raw, high-performance API backend for advanced AI infrastructure.
 
 [![CI](https://github.com/realruneett/Sage/actions/workflows/ci.yml/badge.svg)](https://github.com/realruneett/Sage/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🌟 What's New in v3.0
+## 🎯 What SAGE-PRO is Designed To Do
 
-SAGE-PRO v3.0 introduces five groundbreaking features that transform it from a smart generator into a **fully autonomous, multi-modal, self-improving IDE**:
+SAGE-PRO is engineered to solve complex, repository-scale software engineering tasks through mathematical rigor rather than simple LLM prompting heuristics. It is designed to:
 
-1. **🪟 Live "Glass" Renderer:** Real-time sandboxed execution of agent-generated code (HTML/CSS/JS, Python via Pyodide, React via ESM) directly in the UI.
-2. **👁️ Vision Debugging ("Look at This"):** Multi-modal VLM integration. Paste screenshots of broken UIs or plots; the IDE visually analyzes the defect and auto-fixes the code.
-3. **⏳ Time-Travel Branching:** Git-like topological state branching of the LangGraph pipeline. Rewind, fork, and diff the AI's "thought branches" to explore alternate architectures.
-4. **🔬 LSP Bridge (Semantic Awareness):** Agents possess native Language Server Protocol (LSP) capabilities (via Jedi) allowing them to execute `Find References`, `Go to Definition`, and surgical workspace-wide refactors.
-5. **💭 Chaos Dreamer (Autonomous Self-Improvement):** An asynchronous worker that dreams up synthetic coding challenges while idle, solves them through the Nash Crucible, and stores successful strategies in the ChromaDB Mistake Library to literally learn overnight.
+1. **Eliminate LLM Hallucinations:** By subjecting all generated code to an adversarial Red-Team and forcing refinement until mathematical convergence (Nash Equilibrium) is reached.
+2. **Execute Parallel Co-Resident Reasoning:** Utilizing the AMD MI300X's 192GB HBM3 to load four distinct heavy-weight models (Qwen-32B, Llama-70B, Mistral-123B, DeepSeek-V2) into memory simultaneously, enabling zero-latency cross-agent debate without PCIe VRAM swapping.
+3. **Discover Semantic Voids:** Using Persistent Homology to map the vector space of a codebase and route generation tasks to the exact "topological holes" in the system's logic.
+4. **Enforce Divergent Thinking:** Applying a Torsion Tensor (Lie Bracket synthesis) to force the implementer agents down orthogonal thought paths, ensuring they do not collapse into premature, degenerative consensus.
 
-## 🚀 The AODE Advantage
+## 🚀 The AODE Advantage on AMD MI300X
 
-SAGE-PRO breaks the "80GB barrier" of the H100 by maintaining four co-resident models for parallel reasoning. This eliminates VRAM swapping, reduces latency by 90%, and prevents **OOM** (Out of Memory) crashes that are common on smaller hardware.
+SAGE-PRO breaks the "80GB barrier" of standard H100s. By maintaining four co-resident models for parallel reasoning on the MI300X, it reduces inter-agent communication latency by 90% and prevents **OOM** (Out of Memory) crashes, unlocking true autonomous adversarial verification.
 
 ## 📐 Mathematical Foundation
 
 The v3.0 engine operates on a deeply rigorous mathematical framework:
 - **Lie Bracket Synthesis:** $[V, W] \neq 0$ enforced via Semantic Torsion (Gram-Schmidt orthogonalization).
 - **Nash Equilibrium Crucible:** $c^* = \arg\min_{c} \max_{D} \Delta(c, D)$ adversarial minimax loop.
-- **Manifold-Adaptive Q-Routing (MAQR):** Reinforcement learning over a FAISS-clustered task manifold.
-- **Topological State Branching:** DAG-based checkpointing for the Time-Travel Engine.
+- **Topological Void Routing:** Finding Betti numbers ($\beta_1, \beta_2$) using FAISS HNSW proximity graphs.
 
 👉 **Read the full mathematical formulation:** [SAGE_PRO_v3_MATHEMATICAL_SPEC.md](docs/SAGE_PRO_v3_MATHEMATICAL_SPEC.md)
 
-## 📡 API Reference
+## 📡 API Reference (Headless Cloud Backend)
 
-SAGE-PRO provides a production-ready FastAPI backend (`v3.0.0`):
+SAGE-PRO provides a production-ready, raw FastAPI backend intended for cloud integration:
 
-- `POST /v1/sage/stream`: Streaming AODE execution.
-- `POST /v1/preview/render`: Render agent code into sandboxed iframes.
-- `POST /v1/vision/debug`: VLM visual analysis and code patching.
-- `GET /v1/timeline/{thread_id}`: Time-travel checkpoint retrieval.
-- `POST /v1/lsp/references`: Agent-driven codebase semantic search.
-- `POST /v1/dreamer/start`: Trigger background self-improvement.
+- `POST /v1/sage/stream`: Streaming AODE execution pipeline.
+- `POST /v1/sage/submit`: Async job submission for the Nash Crucible.
+- `GET /v1/telemetry`: Retrieve MI300X VRAM allocation and agent convergence metrics.
 
 ### 📊 SOTY Benchmarks
 
@@ -50,13 +45,14 @@ SAGE-PRO provides a production-ready FastAPI backend (`v3.0.0`):
 | DeepSeek-V2 (Base)| 78.1% | 15.8% | 44.2% | 14 GB |
 | **SAGE-PRO v3.0** | **94.1%** | **41.2%** | **65.8%** | **184.2 GB**|
 
-## ⚡ Quickstart (MI300X)
+## ⚡ Cloud Deployment (MI300X)
 
-Deploy the full SAGE-PRO stack on a fresh ROCm 6.2 instance with one command:
+Deploy the SAGE-PRO headless stack on a fresh ROCm 6.2 cloud instance with Docker Compose:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/realruneett/Sage/main/scripts/cloud_bootstrap.sh | bash
+docker-compose -f docker-compose.yml up --build -d
 ```
+The FastAPI backend will be available on port `8000`, with the 4 vLLM agents co-resident on ports `8001-8004`.
 
 ## 📖 Documentation
 

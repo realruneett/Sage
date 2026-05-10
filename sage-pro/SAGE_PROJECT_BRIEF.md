@@ -7,19 +7,18 @@
 
 ## 1. Executive Summary
 
-SAGE-PRO v3.0 is a research-grade, self-evolving, autonomous AI Software Engineer. It transcends standard "chat-with-code" wrappers by employing a multi-agent architectural pipeline grounded in Lie Bracket non-abelian synthesis, persistent homology void detection, and an adversarial minimax Crucible.
+SAGE-PRO v3.0 is a research-grade, autonomous mathematical reasoning engine for software engineering. It transcends standard LLM code generation by employing a multi-agent architectural pipeline grounded in Lie Bracket non-abelian synthesis, persistent homology void detection, and an adversarial minimax Crucible.
 
-Designed natively for the **AMD Instinct™ MI300X**, SAGE-PRO utilizes a 4-agent LangGraph council (Architect, Implementer, Synthesizer, Red-Team) that enforces divergence over consensus. Furthermore, v3.0 introduces a true IDE-level multimodal experience with Glass Rendering, Vision Debugging, and continuous self-play reinforcement learning via the Chaos Dreamer.
+Designed natively as a headless cloud backend for the **AMD Instinct™ MI300X**, SAGE-PRO utilizes a 4-agent LangGraph council (Architect, Implementer, Synthesizer, Red-Team) that enforces divergence over consensus. By running these four massive models co-resident in 192GB of HBM3, SAGE-PRO eliminates hallucination through rigorous, zero-latency adversarial verification.
 
-## 2. The 5 World-Class Features of v3.0
+## 2. Core Capabilities of the SAGE-PRO Model
 
-SAGE-PRO v3.0 elevates the engine from a text generator to a fully-fledged IDE environment:
+SAGE-PRO is engineered specifically for autonomous, repository-scale reasoning. What the model is designed to do:
 
-1. **Live "Glass" Rendering Engine:** Agent-generated artifacts (HTML, Pyodide Python, ESM React) are rendered dynamically in sandboxed iframes directly within the IDE, establishing an instantaneous code-to-visual feedback loop.
-2. **Vision Debugging ("Look at This"):** Full VLM (Vision Language Model) integration. Users can screenshot a broken UI layout or misaligned plot, and the engine maps the visual defect back to the Abstract Syntax Tree (AST) to generate surgical code fixes.
-3. **Time-Travel Topological Branching:** Leveraging the LangGraph `MemorySaver`, the engine exposes its execution history as a navigable DAG (Directed Acyclic Graph). Users can rewind, branch, and apply a differential operator $\partial$ to compare alternate realities of the AI's thought processes.
-4. **LSP Bridge (Semantic Codebase Awareness):** Agents possess native Language Server Protocol access (via Jedi). Rather than reading raw strings, they execute `find_references()` and `goto_definition()`, enabling perfect, hallucination-free refactors across massive repositories.
-5. **Chaos Dreamer (Autonomous Self-Improvement):** An asynchronous worker that continuously samples tasks $T \sim \mathcal{D}_{synthetic}$ during idle time, solves them through the Nash Crucible, and updates the $Q$-table while saving execution traces to the Mistake Library for future retrieval.
+1. **Topological Void Detection:** Uses Persistent Homology to map the semantic vector space of a codebase, identifying structural logic gaps and routing generation tasks to fulfill exactly those voids.
+2. **Orthogonal Divergence (Torsion):** Employs Lie Bracket mathematics to force agent thought processes down divergent paths, guaranteeing the engine does not collapse into degenerative consensus before the synthesis phase.
+3. **Adversarial Hardening (The Crucible):** All generated code is subjected to a two-player zero-sum iterated game between the Synthesizer and the Red-Team, minimizing adversarial damage until a Nash Equilibrium is achieved.
+4. **Co-Resident Execution:** Maximizes the MI300X architecture to load Qwen-32B, Llama-70B, Mistral-123B, and DeepSeek-V2 simultaneously in VRAM, enabling seamless LangGraph state transitions without costly PCIe offloading.
 
 ## 3. The Mathematical Formulations
 

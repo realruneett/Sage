@@ -43,13 +43,4 @@ sequence_graph
 - **Lie Bracket**: Measures the semantic distance between divergent branches.
 - **Nash Damage**: Quantitative grounding for the refinement loop.
 
-## v3.0 Multi-Modal IDE Extensions
-
-With v3.0, the AODE Engine is wrapped in a fully autonomous IDE:
-1. **Live Glass Renderer**: Executes generated code instantly in sandboxed iframes (React, Pyodide, HTML).
-2. **Vision Debugger**: Incorporates `llava:34b` to allow visual code-defect resolution from screenshots.
-3. **Time-Travel Checkpointing**: Uses LangGraph `MemorySaver` to create a Git-like DAG timeline of the AI's reasoning.
-4. **LSP Bridge**: Native codebase awareness via `jedi`, eliminating hallucinated refactoring.
-5. **Chaos Dreamer**: A background asynchronous reinforcement learning worker that trains the CTR engine during idle time.
-
 *See [SAGE_PRO_v3_MATHEMATICAL_SPEC.md](SAGE_PRO_v3_MATHEMATICAL_SPEC.md) for full formalisms.*
