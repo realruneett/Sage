@@ -465,12 +465,6 @@ def _make_emit_node(hyperparams: Dict[str, Any]) -> Any:
 #  Public API
 # ─────────────────────────────────────────────────────────────────────
 
-
-async def node_simple_path(state: GraphState) -> dict:
-    """For simple queries: skip parallel branches, feed architect spec directly."""
-    spec = state.get("architect_spec", "")
-    return {"code_abc": spec, "code_acb": ""}
-
 def build_graph(
     agents: Dict[str, Any],
     tools: Dict[str, Any],
@@ -546,14 +540,12 @@ def build_graph(
     def route_after_torsion(state):
         req = state.get("request")
         if req and len(req.task.split()) <= 8:
-            return "simple_path"
+            return "synthesize"
         return "parallel_branches"
-    workflow.add_node("simple_path", node_simple_path)
     workflow.add_conditional_edges("torsion", route_after_torsion, {
         "parallel_branches": "parallel_branches",
-        "simple_path": "simple_path",
+        "synthesize": "synthesize",
     })
-    workflow.add_edge("simple_path", "synthesize")
     workflow.add_edge("parallel_branches", "synthesize")
     workflow.add_edge("synthesize", "human_feedback_gate")
     workflow.add_edge("human_feedback_gate", "crucible")
