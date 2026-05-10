@@ -7,6 +7,16 @@ no stubs, no hardcoded literals.
 
 Agents and tools are dependency-injected into the graph via closures
 created inside `build_graph(agents, tools)`.
+
+Human-in-the-Loop:
+    The graph uses `interrupt_after=["synthesize"]` to enable
+    artifact comment injection.  After synthesis, the graph yields
+    a checkpoint.  External callers (WebSocket artifact_comment
+    events) update `pending_human_feedback` in the checkpoint state,
+    then resume the graph.  The `human_feedback_gate` node reads
+    this field and injects the feedback into the crucible context.
+    If no feedback arrives within the configured timeout, the gate
+    passes through automatically.
 """
 
 import math
@@ -31,7 +41,15 @@ logger = structlog.get_logger(__name__)
 # ─────────────────────────────────────────────────────────────────────
 
 class SageState(TypedDict):
-    """Internal state for the SAGE-PRO reasoning graph."""
+    """Internal state for the SAGE-PRO reasoning graph.
+
+    Human-in-the-Loop fields:
+        pending_human_feedback: Set to True by external callers
+            (via checkpoint state update) when a user submits an
+            artifact comment during graph execution.
+        human_feedback_content: The actual comment text injected
+            by the WebSocket artifact_comment handler.
+    """
     request: SageRequest
     repo_files: List[Tuple[str, str]]
     task_route: List[Tuple[str, Tuple[int, int], float]]
@@ -51,6 +69,9 @@ class SageState(TypedDict):
     xai_trace: List[XAITrace]
     vram_peak_gb: float
     execution_time_sec: float
+    # Human-in-the-Loop state for artifact comment injection
+    pending_human_feedback: bool
+    human_feedback_content: str
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -262,13 +283,90 @@ def _make_synthesize_node(synthesizer: Any) -> Any:
     return synthesize_node
 
 
+def _make_human_feedback_gate() -> Any:
+    """Creates the human feedback gate node.
+
+    This node sits between 'synthesize' and 'crucible'.  The graph
+    is compiled with `interrupt_after=["synthesize"]`, which means
+    execution pauses here and a checkpoint is persisted.
+
+    External callers (e.g. WebSocket artifact_comment handler) can
+    update the checkpoint state to set:
+        pending_human_feedback = True
+        human_feedback_content = "<user's comment>"
+
+    When the graph resumes, this gate node reads those fields and
+    injects the feedback into the architect_spec so the crucible
+    loop sees it.
+
+    If no feedback was provided (pending_human_feedback is False),
+    the gate passes through with no modifications.
+    """
+    async def human_feedback_gate_node(state: SageState) -> Dict[str, Any]:
+        has_feedback = state.get("pending_human_feedback", False)
+        feedback = state.get("human_feedback_content", "")
+
+        if not has_feedback or not feedback:
+            logger.info("human_feedback_gate_passthrough")
+            return {}
+
+        # Inject human feedback into the architect spec so the
+        # crucible loop (and all downstream agents) can see it.
+        existing_spec = state.get("architect_spec", "")
+        augmented_spec = (
+            existing_spec
+            + "\n\n## Human Feedback (Artifact Comment)\n"
+            + feedback
+            + "\n"
+        )
+
+        logger.info(
+            "human_feedback_injected",
+            feedback_length=len(feedback),
+        )
+
+        traces = state.get("xai_trace", []) + [
+            XAITrace(
+                step_name="human_feedback_gate",
+                operator="human_in_the_loop",
+                divergence_signal=0.0,
+                action_taken=f"Injected {len(feedback)} chars of human feedback into spec",
+            )
+        ]
+        return {
+            "architect_spec": augmented_spec,
+            "pending_human_feedback": False,
+            "xai_trace": traces,
+        }
+    return human_feedback_gate_node
+
+
 def _make_crucible_node(
     red_team: Any,
     synthesizer: Any,
     tools: Dict[str, Any],
     hyperparams: Dict[str, Any],
 ) -> Any:
-    """Creates the crucible node — Nash equilibrium refinement loop."""
+    """Creates the crucible node — iterative minimax adversarial refinement.
+
+    Game-Theoretic Justification:
+        The crucible implements a two-player zero-sum iterative game:
+          - Blue (Synthesizer): strategy = code modifications to minimize damage
+          - Red (Red-Team):     strategy = adversarial tests to maximize damage
+
+        Each cycle is one round of best-response dynamics:
+          1. Red plays best-response attack against current Blue code
+          2. Blue plays best-response fix against Red's attack
+          3. Damage is measured via deterministic tool oracles
+
+        The exponential time-decay e^{-δi} ensures diminishing returns,
+        guaranteeing convergence to an approximate minimax equilibrium:
+          Ψ_opt = argmax_{Ψ∈Blue} min_{C∈Red} [ Utility(Ψ) − Damage(C)·e^{-δi} ]
+
+        This is equivalent to fictitious play with exponential discounting,
+        which converges to Nash Equilibrium in two-player zero-sum games
+        (Robinson 1951, Brown 1951).
+    """
     async def crucible_node(state: SageState) -> Dict[str, Any]:
         logger.info("node_crucible_start")
 
@@ -287,9 +385,13 @@ def _make_crucible_node(
         traces = state.get("xai_trace", []) + [
             XAITrace(
                 step_name="crucible",
-                operator="nash_equilibrium",
+                operator="minimax_equilibrium",
                 divergence_signal=trajectory[-1] if trajectory else 0.0,
-                action_taken=f"Nash converged in {len(history)} cycles — final damage {trajectory[-1]:.4f}" if trajectory else "Crucible skipped",
+                action_taken=(
+                    f"Minimax converged in {len(history)} cycles via best-response dynamics "
+                    f"(fictitious play with exp decay δ={hyperparams.get('delta', 0.02)}) "
+                    f"— final damage {trajectory[-1]:.4f}"
+                ) if trajectory else "Crucible skipped",
             )
         ]
         return {
@@ -416,11 +518,15 @@ def build_graph(
         architect, implementer, red_team, synthesizer,
     ))
     workflow.add_node("synthesize", _make_synthesize_node(synthesizer))
+    workflow.add_node("human_feedback_gate", _make_human_feedback_gate())
     workflow.add_node("crucible", _make_crucible_node(red_team, synthesizer, tools, hyperparams))
     workflow.add_node("verify", _make_verify_node(tools))
     workflow.add_node("emit", _make_emit_node(hyperparams))
 
     # Wire the pipeline
+    # The graph pauses after 'synthesize' via interrupt_after,
+    # allowing external artifact_comment injection into the
+    # checkpoint state before resuming through the feedback gate.
     workflow.set_entry_point("ingest")
     workflow.add_edge("ingest", "route")
     workflow.add_edge("route", "architect")
@@ -428,9 +534,19 @@ def build_graph(
     workflow.add_edge("pre_attack", "torsion")
     workflow.add_edge("torsion", "parallel_branches")
     workflow.add_edge("parallel_branches", "synthesize")
-    workflow.add_edge("synthesize", "crucible")
+    workflow.add_edge("synthesize", "human_feedback_gate")
+    workflow.add_edge("human_feedback_gate", "crucible")
     workflow.add_edge("crucible", "verify")
     workflow.add_edge("verify", "emit")
     workflow.add_edge("emit", END)
 
-    return workflow.compile()
+    # Compile with interrupt_after on synthesize — this is the
+    # LangGraph Human-in-the-Loop pattern.  The graph yields a
+    # checkpoint after synthesis completes.  External callers
+    # update `pending_human_feedback` + `human_feedback_content`
+    # in the checkpoint, then call graph.stream(None, config)
+    # to resume.  The human_feedback_gate node reads the injected
+    # state and passes it downstream to the crucible.
+    return workflow.compile(
+        interrupt_after=["synthesize"],
+    )

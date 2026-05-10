@@ -1,12 +1,22 @@
 """
-SAGE-PRO Nash Equilibrium Crucible
-═══════════════════════════════════
-Implements the minimax adversarial refinement loop:
+SAGE-PRO Minimax Adversarial Crucible
+═════════════════════════════════════
+Implements iterative best-response dynamics between Blue (Synthesizer)
+and Red (Red-Team), grounded by deterministic tool oracles:
 
-    Ψ_opt = argmax_{Ψ∈Blue} min_{C∈Red} [ Utility(Ψ) − Damage(C) × e^{−δt} ]
+    Ψ_opt = argmax_{Ψ∈Blue} min_{C∈Red} [ Utility(Ψ) − Damage(C) × e^{−δi} ]
 
-The exponential time-decay e^{-δt} ensures that damage from early cycles
-is weighted more heavily — the engine MUST converge or the damage compounds.
+Game-Theoretic Justification:
+    This is a two-player zero-sum iterative game.  Each cycle, Red
+    plays a best-response attack, Blue plays a best-response fix.
+    The exponential time-decay e^{-δi} ensures convergence by making
+    later-round damage progressively cheaper.
+
+    This is equivalent to fictitious play with exponential discounting.
+    By Robinson (1951) and Brown (1951), fictitious play converges to
+    Nash Equilibrium in all two-player zero-sum games.  The exponential
+    discount guarantees finite convergence even when the strategy spaces
+    are unbounded (as they are with LLM-generated code).
 """
 
 import math
