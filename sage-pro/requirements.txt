@@ -29,4 +29,4 @@ datasets>=2.14.0
 transformers>=4.34.0
 sse-starlette>=1.6.0
 autoawq>=0.1.0
-# hyperfine (system) - assume available in environment
+# hyperfine (system) - assume available in environmentchromadb>=0.4.0
