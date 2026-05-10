@@ -1,5 +1,5 @@
 # SAGE-PRO Deployment Image for AMD MI300X (ROCm)
-FROM rocm/pytorch:rocm6.2_ubuntu22.04_py3.10_pytorch_release_2.3.1
+FROM python:3.11-slim
 
 WORKDIR /app
 

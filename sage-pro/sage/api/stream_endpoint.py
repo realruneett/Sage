@@ -81,10 +81,13 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
     except Exception:
         pass  # Graceful degradation — proceed without mistake context
 
+    from sage.core.complexity_router import get_strategy
+    strategy = get_strategy(query)
+    effective_cycles = min(max_cycles, strategy["max_cycles"])
     sage_req = SageRequest(
         task=enriched_query,
         context_files=[],
-        max_cycles=max_cycles,
+        max_cycles=effective_cycles,
         priority=priority,
     )
 
