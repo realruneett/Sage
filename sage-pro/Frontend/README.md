@@ -1,32 +1,24 @@
-# SAGE Frontend — Gradio Dashboard
+---
+title: SAGE — Strategic Adversarial Generative Engine
+emoji: 🧠
+colorFrom: red
+colorTo: yellow
+sdk: gradio
+sdk_version: 5.29.0
+app_file: app.py
+pinned: true
+license: mit
+---
 
-Production-ready frontend for the SAGE-PRO AODE Engine.
+# SAGE-PRO — Strategic Adversarial Generative Engine
 
-## Features (v3.0.0)
-- 🚀 **Full AODE Pipeline UI** — Task input → Live execution trace → Hardened code output
-- 🪟 **Glass Renderer** — Sandboxed live preview of agent-generated code (HTML/CSS/JS, Pyodide, React)
-- 👁️ **Vision Debugger** — Upload screenshots of broken UIs; SAGE auto-fixes the code via VLM
-- 💭 **Chaos Dreamer** — Start/stop autonomous self-improvement; view dream statistics live
-- 📊 **XAI Metrics** — Damage trajectory, VRAM footprint, divergence index, reasoning trace
-- 🗺️ **Pipeline Map** — Animated visualization of the 10-node LangGraph execution
-- 🔧 **System Health** — Real-time backend agent status with model info
+Multi-agent AI system running on AMD Instinct MI300X with tier-based model routing.
 
-## Modes
-| Mode | Description |
-|------|-------------|
-| `pro` | Full SAGE-PRO backend (MI300X vLLM) |
-| `free` | Local Ollama models |
-| `api` | Remote SAGE-PRO API |
-| `demo` | Fully simulated (no GPU) |
+## Tiers
+- **Simple** — Direct response, ~0.2s
+- **Medium** — Full pipeline, qwen2.5-coder:32b
+- **Complex** — Adversarial debate, deepseek-r1:32b vs qwen2.5-coder:32b
+- **Boardroom** — Full council with 72b model (say "boardroom:" to trigger)
 
-## Deploy on Hugging Face Spaces
-```bash
-# Set SAGE_MODE=demo for zero-GPU demo
-python app.py
-```
-
-## Environment Variables
-- `SAGE_MODE` — `pro | free | api | demo` (default: auto-detect)
-- `SAGE_API_URL` — SAGE-PRO backend URL
-- `VLLM_HOST_*` — Co-resident vLLM endpoints
-- `OLLAMA_BASE_URL` — Local Ollama fallback
+## Demo Mode
+Set `SAGE_MODE=demo` for zero-GPU demo on HF Spaces.

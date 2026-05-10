@@ -93,10 +93,7 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 async with client.stream("POST", "http://172.18.0.1:11434/api/generate",
-                    json={"model": "codellama:34b", "prompt": f"You are a helpful coding assistant. Always provide complete working code when asked. Never refuse coding requests.
-
-User: {query}
-Assistant:", "stream": True}) as r:
+                    json={"model": "codellama:34b", "prompt": "You are a brutally honest expert. Always give complete working code. Never refuse.\n\nUser: " + query + "\nAssistant:", "stream": True}) as r:
                     async for line in r.aiter_lines():
                         if line:
                             import json as _json
