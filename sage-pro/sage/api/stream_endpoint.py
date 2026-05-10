@@ -84,6 +84,14 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
     from sage.core.complexity_router import get_strategy
     strategy = get_strategy(query)
     effective_cycles = min(max_cycles, strategy["max_cycles"])
+    # Inject tier into hyperparams so _build_agents picks right models
+    try:
+        _subsystems = _get_v2_subsystems()
+        _hp = _subsystems.get("hyperparams", {})
+        if isinstance(_hp, dict):
+            _hp["_tier"] = strategy["tier"]
+    except Exception:
+        pass
     sage_req = SageRequest(
         task=enriched_query,
         context_files=[],

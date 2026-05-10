@@ -537,15 +537,7 @@ def build_graph(
     workflow.add_edge("route", "architect")
     workflow.add_edge("architect", "pre_attack")
     workflow.add_edge("pre_attack", "torsion")
-    def route_after_torsion(state):
-        req = state.get("request")
-        if req and len(req.task.split()) <= 8:
-            return "synthesize"
-        return "parallel_branches"
-    workflow.add_conditional_edges("torsion", route_after_torsion, {
-        "parallel_branches": "parallel_branches",
-        "synthesize": "synthesize",
-    })
+    workflow.add_edge("torsion", "parallel_branches")
     workflow.add_edge("parallel_branches", "synthesize")
     workflow.add_edge("synthesize", "human_feedback_gate")
     workflow.add_edge("human_feedback_gate", "crucible")
