@@ -107,7 +107,7 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
                                 pass
         except Exception as e:
             full_reply = f"Error: {e}"
-        yield _sse_event("agent_done", agent="sage", content=full_reply,
+        yield _sse_event("pipeline_done", agent="sage", content=full_reply,
                          vram_gb=24.0, nash_cycle=0, divergence=0.0, status="COMPLETE")
         return
     effective_cycles = min(max_cycles, strategy["max_cycles"])
