@@ -1,89 +1,32 @@
----
-title: SAGE-PRO Crucible
-emoji: ⚡
-colorFrom: blue
-colorTo: cyan
-sdk: gradio
-sdk_version: 4.29.0
-app_file: app.py
-pinned: true
-license: mit
-short_description: 4-Agent AI Coding Engine on AMD Instinct MI300X (192 GB HBM3)
----
+# SAGE Frontend — Gradio Dashboard
 
-# ⚡ SAGE-PRO — Strategic Adversarial Generative Engine
+Production-ready frontend for the SAGE-PRO AODE Engine.
 
-> **4-Agent Co-Resident Ensemble · AMD Instinct MI300X · 192 GB HBM3 · AMD Developer Hackathon 2024**
+## Features (v3.0.0)
+- 🚀 **Full AODE Pipeline UI** — Task input → Live execution trace → Hardened code output
+- 🪟 **Glass Renderer** — Sandboxed live preview of agent-generated code (HTML/CSS/JS, Pyodide, React)
+- 👁️ **Vision Debugger** — Upload screenshots of broken UIs; SAGE auto-fixes the code via VLM
+- 💭 **Chaos Dreamer** — Start/stop autonomous self-improvement; view dream statistics live
+- 📊 **XAI Metrics** — Damage trajectory, VRAM footprint, divergence index, reasoning trace
+- 🗺️ **Pipeline Map** — Animated visualization of the 10-node LangGraph execution
+- 🔧 **System Health** — Real-time backend agent status with model info
 
-SAGE-PRO is an enterprise-grade AI coding engine that breaks the single-model paradigm by running four specialised agents simultaneously in a unified HBM3 memory pool — enabling context windows and model co-residency impossible on conventional hardware.
+## Modes
+| Mode | Description |
+|------|-------------|
+| `pro` | Full SAGE-PRO backend (MI300X vLLM) |
+| `free` | Local Ollama models |
+| `api` | Remote SAGE-PRO API |
+| `demo` | Fully simulated (no GPU) |
 
----
-
-## Architecture
-
-| Agent | Role | Signal Colour |
-|-------|------|---------------|
-| **Architect** | System topology, interface contracts, distributed-system constraints | `#4a90ff` |
-| **Implementer** | Torsion-aware code synthesis, optimal primitive selection | `#3dffa0` |
-| **Red-Team** | Adversarial probing, boundary fuzzing, CVE-pattern vulnerability discovery | `#ffb347` |
-| **Synthesizer** | Nash Equilibrium Crucible — multi-agent conflict resolution & artifact sealing | `#c084fc` |
-
----
-
-## Hardware Target
-
-| Specification | Value |
-|---------------|-------|
-| GPU | AMD Instinct MI300X |
-| VRAM | 192 GB HBM3 |
-| Memory Bandwidth | 5.3 TB/s |
-| Co-Resident Agents | 4 |
-| Unified Context Pool | 512 K tokens |
-| Avg. Nash Cycles | 4 · Δ = 0.02 |
-
----
-
-## Features
-
-- 🔐 **Secure Auth Gate** — full-screen split-panel login, clearance-required access
-- ⚡ **Real-time Streaming** — async generator driving live XAI trace logs per agent
-- 📡 **Live Telemetry** — VRAM peak, Nash cycles, divergence index, council status
-- 🏺 **Final Artifact** — Nash-hardened, Red-Team-verified Python output
-- 📋 **Session History** — all runs persisted and browsable within the session
-- ⚙️ **Settings** — engine configuration panel (backend URL, Nash depth, VRAM soft-cap)
-- ℹ️ **About** — hardware specs and full agent capability descriptions
-
----
-
-## Access
-
-Access credentials are managed by the project administrator.
-Contact the repository owner at [github.com/realruneett/Sage](https://github.com/realruneett/Sage) for authorised access.
-
----
-
-## Wiring to the FastAPI Backend
-
-Set `SAGE_BACKEND_URL` in your HF Space **Secrets** (Settings → Variables and secrets), then replace the `run_sage_engine` generator body with a real streaming call:
-
-```python
-import os, httpx
-
-async def run_sage_engine(query: str, sessions: list[dict]):
-    url = os.environ["SAGE_BACKEND_URL"] + "/v1/sage/generate"
-    async with httpx.AsyncClient(timeout=180) as client:
-        async with client.stream("POST", url, json={"query": query}) as resp:
-            async for chunk in resp.aiter_text():
-                # parse chunk, update UI state, yield outputs
-                yield ...
+## Deploy on Hugging Face Spaces
+```bash
+# Set SAGE_MODE=demo for zero-GPU demo
+python app.py
 ```
 
----
-
-## Repository
-
-**GitHub:** [github.com/realruneett/Sage](https://github.com/realruneett/Sage)
-
----
-
-*SAGE-PRO · Built for the AMD Instinct MI300X Developer Hackathon 2024*
+## Environment Variables
+- `SAGE_MODE` — `pro | free | api | demo` (default: auto-detect)
+- `SAGE_API_URL` — SAGE-PRO backend URL
+- `VLLM_HOST_*` — Co-resident vLLM endpoints
+- `OLLAMA_BASE_URL` — Local Ollama fallback

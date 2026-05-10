@@ -241,3 +241,59 @@ chaos_curriculum:
   enabled: true
   max_daily_games: 5
   target_q_threshold: 0.6
+
+# ══════════════════════════════════════════════════
+# SAGE-PRO v3.0 FEATURE CONFIGURATIONS
+# ══════════════════════════════════════════════════
+
+# Feature 1: Live Glass Renderer
+live_renderer:
+  sandbox_timeout_sec: 10
+  max_preview_cache: 50
+  allowed_runtimes:
+    - html
+    - python_pyodide
+    - react_esm
+    - javascript
+  pyodide_cdn: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
+  react_esm_cdn: "https://esm.sh"
+
+# Feature 2: Vision Debugger
+vision_debugger:
+  vlm_model: "llava:34b"
+  max_image_size_bytes: 10485760  # 10 MB
+  analysis_temperature: 0.2
+  analysis_max_tokens: 4096
+
+# Feature 3: Time-Travel Engine
+time_travel:
+  max_checkpoints_per_thread: 200
+  max_branches: 50
+  state_snapshot_max_kb: 512
+  auto_checkpoint: true
+
+# Feature 4: LSP Bridge
+lsp_bridge:
+  backend: "jedi"
+  max_scan_depth: 5
+  excluded_dirs:
+    - __pycache__
+    - .git
+    - node_modules
+    - venv
+    - .venv
+  diagnostics_engines:
+    - jedi
+    - ruff
+
+# Feature 5: Chaos Dreamer
+chaos_dreamer:
+  max_dreams_per_cycle: 3
+  cooldown_seconds: 300
+  difficulty_weights:
+    easy: 0.2
+    medium: 0.5
+    hard: 0.3
+  reward_threshold: 0.6
+  auto_start: false
+

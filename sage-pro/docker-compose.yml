@@ -45,7 +45,11 @@ services:
       sage-pro:
         condition: service_healthy
     environment:
-      - SAGE_BACKEND_URL=http://sage-pro:8000
+      - SAGE_MODE=pro
+      - SAGE_API_URL=http://sage-pro:8000
+      - SAGE_ENABLE_STREAMING=true
+      - SAGE_ENABLE_XAI=true
+      - SAGE_MAX_CYCLES=4
     ports:
       - "7860:7860"
     restart: unless-stopped
@@ -54,3 +58,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
