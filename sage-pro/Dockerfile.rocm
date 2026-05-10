@@ -44,6 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy installed python packages from builder
 COPY --from=builder /install /usr/local
+COPY requirements.txt requirements-core.txt /app/
+RUN pip3 install --no-cache-dir -r /app/requirements-core.txt && pip3 install --no-cache-dir -r /app/requirements.txt || echo WARNING: some ML deps failed
 
 # Copy source code
 COPY . .
