@@ -84,8 +84,8 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
     from sage.core.complexity_router import get_strategy
     strategy = get_strategy(query)
 
-    # ── Fast path for simple queries — bypass graph entirely ──────────────
-    if strategy["tier"] == "simple":
+    # ── Fast path for simple + medium queries — bypass graph entirely ──────
+    if strategy["tier"] in ("simple", "medium"):
         import httpx
         yield _sse_event("agent_start", agent="SYSTEM", content="Simple query — direct response",
                          vram_gb=0, nash_cycle=0, divergence=0.0, status="RUNNING")
@@ -93,7 +93,7 @@ async def _run_pipeline(query: str, max_cycles: int, priority: str) -> AsyncGene
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 async with client.stream("POST", "http://172.18.0.1:11434/api/generate",
-                    json={"model": "codellama:34b", "prompt": "You are a brutally honest expert. Always give complete working code. Never refuse.\n\nUser: " + query + "\nAssistant:", "stream": True}) as r:
+                    json={"model": "qwen2.5-coder:32b" if strategy["tier"] == "medium" else "codellama:34b", "prompt": "You are a brutally honest expert. Always give complete working code. Never refuse.\n\nUser: " + query + "\nAssistant:", "stream": True}) as r:
                     async for line in r.aiter_lines():
                         if line:
                             import json as _json
