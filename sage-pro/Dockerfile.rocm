@@ -1,62 +1,24 @@
-# SAGE-PRO ROCm Dockerfile
-# Optimized for AMD MI300X (ROCm 6.2)
-
-# --- Builder Stage ---
-FROM rocm/dev-ubuntu-22.04:6.2 AS builder
-
-WORKDIR /build
-COPY requirements.txt requirements-core.txt .
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.10-dev \
-    python3-pip \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Core deps first — server always starts even if ML deps fail
-RUN pip3 install --no-cache-dir --prefix=/install -r requirements-core.txt
-
-# Heavy ML deps separately — failure here won't kill the server
-RUN pip3 install --no-cache-dir --prefix=/install -r requirements.txt || \
-    echo "WARNING: Some ML dependencies failed to install"
-
-# --- Runtime Stage ---
-FROM rocm/dev-ubuntu-22.04:6.2 AS runtime
-
+FROM rocm/dev-ubuntu-22.04:6.2
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/install/bin:$PATH" \
-    PYTHONPATH="/usr/local/lib/python3.10/site-packages:/app"
-
+    PYTHONPATH="/usr/local/lib/python3.10/dist-packages:/app"
 WORKDIR /app
-
-# Install system dependencies for SAGE-PRO mechanical oracle
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.10 \
     python3-pip \
+    python3.10-dev \
+    build-essential \
     firejail \
     bubblewrap \
-    hyperfine \
     git \
     curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Copy installed python packages from builder
-COPY --from=builder /install /usr/local
-COPY requirements.txt requirements-core.txt /app/
-RUN pip3 install --no-cache-dir -r /app/requirements-core.txt && pip3 install --no-cache-dir -r /app/requirements.txt || echo WARNING: some ML deps failed
-
-# Copy source code
+COPY requirements-core.txt requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements-core.txt
+RUN pip3 install --no-cache-dir -r requirements.txt || echo "WARNING: some ML deps failed"
 COPY . .
-
-# Create log and output directories
 RUN mkdir -p logs demo_output models
-
-# Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/healthz || exit 1
-
 EXPOSE 8000 8001-8005
-
 ENTRYPOINT ["python3", "-m", "sage.api.server"]
